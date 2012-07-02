@@ -15,12 +15,18 @@ def prox_l11(u, l):
 def prox_l22(u, l):
     return 1./(1.+l)*u
 
-def prox_l21(u, l, n_samples, n_kernels):
+def prox_l21_1(u, l, n_samples, n_kernels):
     res = np.array([max(1. - l/norm(u[np.arange(n_kernels)*n_samples+i], 2), 0.) for i in range(n_samples)])
     for i in range(n_kernels-1):
         res = np.concatenate((res, res))
     return u*res
 
+def prox_l21(u, l, n_samples, n_kernels):
+    res = np.zeros(n_samples*n_kernels)
+    for i in range(n_kernels):
+        res[i*n_samples:(i+1)*n_samples] = np.array([max(1. - l/norm(u[i*n_samples:(i+1)*n_samples], 2), 0.)])
+    return u*res
+    
 def fista(K, y, l, penalty='l11', n_iter=500):
     """
     We want to solve a problem of the form y = XB + b
@@ -58,11 +64,11 @@ def fista(K, y, l, penalty='l11', n_iter=500):
     n_kernels = n_features/n_samples
 
     if penalty=='l11':
-        prox = lambda(u):prox_l11(u, l)
+        prox = lambda(u):prox_l11(u, l*mu)
     elif penalty=='l22':
-        prox = lambda(u):prox_l22(u, l)
+        prox = lambda(u):prox_l22(u, l*mu)
     elif penalty=='l21':
-        prox = lambda(u):prox_l21(u, l, n_samples, n_kernels)
+        prox = lambda(u):prox_l21(u, l*mu, n_samples, n_kernels)
 
     for i in range(n_iter):
         B_0 = B_1 # B_(k-1) = B_(k)
@@ -83,11 +89,11 @@ y = np.array([1, 1, -1])
 B = fista(X, y, 0.5, 'l11', n_iter=20)
 
 
-X2 = np.random.normal(size=(10, 10))
-y2 = np.random.normal(size=10)
-B2 = fista(X2, y2, 0.5, 'l11', n_iter=100)
-print "taux de bonne prediction with l11: %f " % (np.sum(np.equal(np.dot(X2, B2), y2))/10.)
-B2 = fista(X2, y2, 0.5, 'l22', n_iter=100)
-print "taux de bonne prediction with l22: %f " % (np.sum(np.equal(np.dot(X2, B2), y2))/10.)
-B2 = fista(X2, y2, 0.5, 'l21', n_iter=100)
-print "taux de bonne prediction with l21: %f " % (np.sum(np.equal(np.dot(X2, B2), y2))/10.)
+X2 = np.random.normal(size=(10, 20))
+y2 = np.sign(np.random.normal(size=10))
+B2 = fista(X2, y2, 0.5, 'l11', n_iter=1000)
+print "taux de bonne prediction with l11: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
+B2 = fista(X2, y2, 0.5, 'l22', n_iter=500)
+print "taux de bonne prediction with l22: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
+B2 = fista(X2, y2, 0.5, 'l21', n_iter=500)
+print "taux de bonne prediction with l21: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
