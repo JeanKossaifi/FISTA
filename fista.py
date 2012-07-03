@@ -26,10 +26,15 @@ def prox_l21(u, l, n_samples, n_kernels):
     for i in range(n_kernels):
         res[i*n_samples:(i+1)*n_samples] =\
                 max(1. - l/norm(u[i*n_samples:(i+1)*n_samples], 2), 0.)
-    res = u*res
-    return res
+    return u*res
+
+def hinge_step(y, K, Z):
+    return np.dot(K.transpose(), np.maximum(1 - np.dot(K, Z), 0))
+
+def least_square_step(y, K, Z):
+    return np.dot(K.transpose(), y - np.dot(K,Z))
     
-def fista(K, y, l, penalty='l11', n_iter=500):
+def fista(K, y, l, loss='hinge', penalty='l11', n_iter=500):
     """
     We want to solve a problem of the form y = XB + b
         where X is a (n, p) matrix.
@@ -45,9 +50,13 @@ def fista(K, y, l, penalty='l11', n_iter=500):
         y is of size p
             where K.shape : (n, p)
 
+    loss : string, optionnal
+        defautl : 'hinge'
+        possible values : 'hinge' or 'least-square'
+        
     penalty : string, optionnal
         default : 'l11'
-        possible values : ('l11', 'l22' or 'l21')
+        possible values : 'l11', 'l22' or 'l21'
 
     n_iter : int, optionnal
         number of iterations
@@ -57,6 +66,13 @@ def fista(K, y, l, penalty='l11', n_iter=500):
     B : 
     coefficient computed
     """
+    
+    step = hinge_step
+    if loss=='hinge':
+        K = np.dot(np.diag(y), K)
+    elif loss=='least-square':
+        step = least_square_step
+
     (n_samples, n_features) = K.shape
     B_0 = B_1 = np.zeros(n_features) # coefficients to compute
     tol = 10**(-5)
@@ -75,27 +91,28 @@ def fista(K, y, l, penalty='l11', n_iter=500):
     for i in range(n_iter):
         B_0 = B_1 # B_(k-1) = B_(k)
         tau_0 = tau_1 #tau_(k+1) = tau_k
-        B_1 = prox(Z + mu*np.dot(K.transpose(), y - np.dot(K,Z)))
+        B_1 = prox(Z + mu*step(y, K, Z))
         tau_1 = (1 + sqrt(1 + 4*tau_0**2))/2
         Z = B_1 + (tau_0 - 1)/tau_1*(B_1 - B_0)
 
-#        if norm(B_1 - B_0, 2)/norm(B_1,2) <= tol:
-#            return B_1
+        if norm(B_1 - B_0, 2)/norm(B_1,2) <= tol:
+            print "convergence at iteration : %d" % i
+            return B_1
 
     return B_1
 
-#
-#X = np.array([[1, 2, 1, 2, 4, 2],[1, 0, 0, 2, 0, 0], [0, 0, 1, 0, 0, 2]])
-#B_real = np.array([1, 0, -1])
-#y = np.array([1, 1, -1])
-#B = fista(X, y, 0.5, 'l11', n_iter=20)
-#
-#
-#X2 = np.random.normal(size=(10, 40))
-#y2 = np.sign(np.random.normal(size=10))
-#B2 = fista(X2, y2, 0.5, 'l11', n_iter=1000)
-#print "taux de bonne prediction with l11: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
-#B2 = fista(X2, y2, 0.5, 'l22', n_iter=500)
-#print "taux de bonne prediction with l22: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
-#B2 = fista(X2, y2, 0.5, 'l21', n_iter=500)
-#print "taux de bonne prediction with l21: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
+
+X = np.array([[1, 2, 1, 2, 4, 2],[1, 0, 0, 2, 0, 0], [0, 0, 1, 0, 0, 2]])
+B_real = np.array([1, 0, -1])
+y = np.array([1, 1, -1])
+B = fista(X, y, 0.5, penalty='l11', n_iter=20)
+
+
+X2 = np.random.normal(size=(10, 40))
+y2 = np.sign(np.random.normal(size=10))
+B2 = fista(X2, y2, 0.5, penalty='l11', n_iter=1000)
+print "taux de bonne prediction with l11: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
+B2 = fista(X2, y2, 0.5, penalty='l22', n_iter=1000)
+print "taux de bonne prediction with l22: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
+B2 = fista(X2, y2, 0.5, penalty='l21', n_iter=1000)
+print "taux de bonne prediction with l21: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
