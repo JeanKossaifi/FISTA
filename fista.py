@@ -24,8 +24,10 @@ def prox_l21_1(u, l, n_samples, n_kernels):
 def prox_l21(u, l, n_samples, n_kernels):
     res = np.zeros(n_samples*n_kernels)
     for i in range(n_kernels):
-        res[i*n_samples:(i+1)*n_samples] = np.array([max(1. - l/norm(u[i*n_samples:(i+1)*n_samples], 2), 0.)])
-    return u*res
+        res[i*n_samples:(i+1)*n_samples] =\
+                max(1. - l/norm(u[i*n_samples:(i+1)*n_samples], 2), 0.)
+    res = u*res
+    return res
     
 def fista(K, y, l, penalty='l11', n_iter=500):
     """
@@ -82,18 +84,18 @@ def fista(K, y, l, penalty='l11', n_iter=500):
 
     return B_1
 
-
-X = np.array([[1, 2, 1, 2, 4, 2],[1, 0, 0, 2, 0, 0], [0, 0, 1, 0, 0, 2]])
-B_real = np.array([1, 0, -1])
-y = np.array([1, 1, -1])
-B = fista(X, y, 0.5, 'l11', n_iter=20)
-
-
-X2 = np.random.normal(size=(10, 20))
-y2 = np.sign(np.random.normal(size=10))
-B2 = fista(X2, y2, 0.5, 'l11', n_iter=1000)
-print "taux de bonne prediction with l11: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
-B2 = fista(X2, y2, 0.5, 'l22', n_iter=500)
-print "taux de bonne prediction with l22: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
-B2 = fista(X2, y2, 0.5, 'l21', n_iter=500)
-print "taux de bonne prediction with l21: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
+#
+#X = np.array([[1, 2, 1, 2, 4, 2],[1, 0, 0, 2, 0, 0], [0, 0, 1, 0, 0, 2]])
+#B_real = np.array([1, 0, -1])
+#y = np.array([1, 1, -1])
+#B = fista(X, y, 0.5, 'l11', n_iter=20)
+#
+#
+#X2 = np.random.normal(size=(10, 40))
+#y2 = np.sign(np.random.normal(size=10))
+#B2 = fista(X2, y2, 0.5, 'l11', n_iter=1000)
+#print "taux de bonne prediction with l11: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
+#B2 = fista(X2, y2, 0.5, 'l22', n_iter=500)
+#print "taux de bonne prediction with l22: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
+#B2 = fista(X2, y2, 0.5, 'l21', n_iter=500)
+#print "taux de bonne prediction with l21: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
