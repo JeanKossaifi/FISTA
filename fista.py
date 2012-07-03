@@ -10,18 +10,44 @@ from scipy.linalg import norm
 from math import sqrt
 
 def prox_l11(u, l):
+    """
+    l(1, 1, 2) norm
+
+    parameters
+    ----------
+    u : np-array
+        a point of the n-dimensional space
+
+    l : integer
+        regularisation parameter
+
+    returns
+    -------
+    np-array
+    the point corresponding to the application of 
+    the proximity operator to u
+    """
     return np.sign(u)*np.maximum(np.abs(u) - l, 0.)
 
 def prox_l22(u, l):
+    """
+    l(2, 2, 2) norm, see prox_l11
+    """
     return 1./(1.+l)*u
 
 def prox_l21_1(u, l, n_samples, n_kernels):
+    """
+    l(2, 1, 1) norm, see prox_l11
+    """
     res = np.array([max(1. - l/norm(u[np.arange(n_kernels)*n_samples+i], 2), 0.) for i in range(n_samples)])
     for i in range(n_kernels-1):
         res = np.concatenate((res, res))
     return u*res
 
 def prox_l21(u, l, n_samples, n_kernels):
+    """
+    l(2, 1, 2) norm, see prox_l11
+    """
     res = np.zeros(n_samples*n_kernels)
     for i in range(n_kernels):
         res[i*n_samples:(i+1)*n_samples] =\
@@ -29,6 +55,25 @@ def prox_l21(u, l, n_samples, n_kernels):
     return u*res
 
 def hinge_step(y, K, Z):
+    """
+    Returns the point in witch we apply gradient descent
+
+    parameters
+    ----------
+    y : np-array
+        the labels vector
+
+    K : 2D np-array
+        the concatenation of all the kernels, of shape
+        n_samples, n_kernels*n_samples
+
+    Z : a linear combination of the last two coefficient vectors
+
+    returns
+    -------
+    res : np-array of shape n_samples*,_kernels
+          a point of the space where we will apply gradient descent
+    """
     return np.dot(K.transpose(), np.maximum(1 - np.dot(K, Z), 0))
 
 def least_square_step(y, K, Z):
@@ -36,8 +81,8 @@ def least_square_step(y, K, Z):
     
 def fista(K, y, l, loss='hinge', penalty='l11', n_iter=500):
     """
-    We want to solve a problem of the form y = XB + b
-        where X is a (n, p) matrix.
+    We want to solve a problem of the form y = KB + b
+        where K is a (n_samples, n_kernels*n_samples) matrix.
 
     arguments
     ---------
@@ -63,7 +108,7 @@ def fista(K, y, l, loss='hinge', penalty='l11', n_iter=500):
 
     return
     ------
-    B : 
+    B : ndarray
     coefficient computed
     """
     
