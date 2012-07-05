@@ -54,6 +54,60 @@ def prox_l21(u, l, n_samples, n_kernels):
                 max(1. - l/norm(u[i*n_samples:(i+1)*n_samples], 2), 0.)
     return u*res
 
+def prox_l12(u, l, n_samples, n_kernels):
+    pass
+
+def compute_M(u, l, n_samples):
+    """
+    parameters
+    ----------
+    u : ndarray
+        subvector for a single kernel
+
+    l : integer
+
+    n_samples : integer
+        number of elements in each kernel 
+        ie number of elements of u
+
+    explication
+    -----------
+    let u denotes |u(l)|, the vector associated with the kernel l, ordered by descending order
+    Ml is the integer such that
+        u(Ml) <= l * sum(k=1..Ml + 1) (u(k) - u(Ml + 1))    (S1)
+        and
+        u(Ml) > l * sum(k=1..Ml) (u(k) - u(Ml)              (S2)
+
+    example
+    -------
+    if u(l) = [0 1 2 3] corrsponds to the vector associated with a kernel
+        then u = |u(l)| ordered by descending order ie u = [3 2 1 0]
+
+    u = [3 2 1 0]
+    let l = 1
+    Ml is in [2, 1, 0] (not 3 because we also consider Ml+1)
+
+    if Ml = 0 then S1 = 1 and S2 = 0
+    if Ml = 1 then S1 = 3 and S2 = 1
+    if Ml = 2 then S1 = 6 and S2 = 3
+
+    if Ml = 0 then u(Ml+1)=u(1)=2  > l*... =1  (S1 is not verified)
+              and  u(Ml)=u(0)=3    > l*... =0  (S2 is verified)
+
+    if Ml = 1 then u(Ml+1)=u(2)=1 <= l*... =3  (S1 is verified)
+              and  u(Ml)=u(1)=2    > l*... =1  (S2 is verified)
+
+    if Ml = 2 then u(Ml+1)=u(3)=0 <= l*... =6  (S1 is verified)
+              but  u(Ml)=u(2)=1   <= l*... =3  (S1 is not verified)
+
+    Conclusion : Ml = 1
+    """
+    u = np.sort(np.abs(u))[::-1]
+    S1 = u[1:] - l*(np.cumsum(u)[:-1] - (np.arange(n_samples-1)+1)*u[1:])
+    S2 = u[:-1] - l*(np.cumsum(u)[:-1] - (np.arange(n_samples-1)+1)*u[:-1])
+    return np.argmax((S1 <= 0) & (S2 > 0))
+
+
 def hinge_step(y, K, Z):
     """
     Returns the point in witch we apply gradient descent
@@ -161,3 +215,5 @@ B2 = fista(X2, y2, 0.5, penalty='l22', n_iter=1000)
 print "taux de bonne prediction with l22: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
 B2 = fista(X2, y2, 0.5, penalty='l21', n_iter=1000)
 print "taux de bonne prediction with l21: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
+u = np.arange(4)
+compute_M(u, 1, len(u))
