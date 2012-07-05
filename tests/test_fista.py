@@ -4,8 +4,9 @@ __license__ = 'BSD'
 import numpy as np
 
 from numpy.testing import assert_array_equal
+from nose.tools import assert_true
 
-from ..fista import prox_l11, prox_l22, prox_l21
+from ..fista import prox_l11, prox_l22, prox_l21, compute_M
 
 def test_prox_l11():
     u = np.ones(3)
@@ -30,3 +31,10 @@ def test_prox_l21():
     assert_array_equal(np.zeros(8), prox_l21(u, l, 4, 2))
     l = 1
     assert_array_equal(u*0.5, prox_l21(u, l, 4, 2))
+
+def test_compute_M():
+    l = 1
+    u = np.arange(4)
+    Ml, sum_Ml = compute_M(u, l, len(u))
+    assert_true(Ml==2)
+    assert_true(sum_Ml==5)
