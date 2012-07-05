@@ -55,7 +55,11 @@ def prox_l21(u, l, n_samples, n_kernels):
     return u*res
 
 def prox_l12(u, l, n_samples, n_kernels):
-    pass
+    u = u.reshape(n_kernels, n_samples)
+    for i in u:
+        Ml, sum_Ml = compute_M(i, l, n_samples)
+        i = np.sign(i)*np.maximum(np.abs(i)-(l*sum_Ml)/((1+l*Ml)*norm(i, 2)), 0)
+    return u.reshape(n_kernels*n_samples)
 
 def compute_M(u, l, n_samples):
     """
@@ -105,7 +109,8 @@ def compute_M(u, l, n_samples):
     u = np.sort(np.abs(u))[::-1]
     S1 = u[1:] - l*(np.cumsum(u)[:-1] - (np.arange(n_samples-1)+1)*u[1:])
     S2 = u[:-1] - l*(np.cumsum(u)[:-1] - (np.arange(n_samples-1)+1)*u[:-1])
-    return np.argmax((S1 <= 0) & (S2 > 0))
+    Ml = np.argmax((S1 <= 0) & (S2 > 0))
+    return (Ml+1), np.sum(u[:Ml])
 
 
 def hinge_step(y, K, Z):
@@ -186,6 +191,8 @@ def fista(K, y, l, loss='hinge', penalty='l11', n_iter=500):
         prox = lambda(u):prox_l22(u, l*mu)
     elif penalty=='l21':
         prox = lambda(u):prox_l21(u, l*mu, n_samples, n_kernels)
+    elif penalty=='l12':
+        prox = lambda(u):prox_l12(u, l*mu, n_samples, n_kernels)
 
     for i in range(n_iter):
         B_0 = B_1 # B_(k-1) = B_(k)
@@ -215,5 +222,5 @@ B2 = fista(X2, y2, 0.5, penalty='l22', n_iter=1000)
 print "taux de bonne prediction with l22: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
 B2 = fista(X2, y2, 0.5, penalty='l21', n_iter=1000)
 print "taux de bonne prediction with l21: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
-u = np.arange(4)
-compute_M(u, 1, len(u))
+B2 = fista(X2, y2, 0.5, penalty='l12', n_iter=1000)
+print "taux de bonne prediction with l12: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
