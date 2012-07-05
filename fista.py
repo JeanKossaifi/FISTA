@@ -8,6 +8,7 @@ __licence__ = 'BSD'
 import numpy as np
 from scipy.linalg import norm
 from math import sqrt
+from sklearn.base import BaseEstimator
 
 def prox_l11(u, l):
     """
@@ -109,8 +110,8 @@ def compute_M(u, l, n_samples):
     u = np.sort(np.abs(u))[::-1]
     S1 = u[1:] - l*(np.cumsum(u)[:-1] - (np.arange(n_samples-1)+1)*u[1:])
     S2 = u[:-1] - l*(np.cumsum(u)[:-1] - (np.arange(n_samples-1)+1)*u[:-1])
-    Ml = np.argmax((S1 <= 0) & (S2 > 0))
-    return (Ml+1), np.sum(u[:Ml])
+    Ml = np.argmax((S1 <= 0) & (S2 > 0)) + 1
+    return Ml, np.sum(u[:Ml])
 
 
 def hinge_step(y, K, Z):
@@ -138,89 +139,92 @@ def hinge_step(y, K, Z):
 def least_square_step(y, K, Z):
     return np.dot(K.transpose(), y - np.dot(K,Z))
     
-def fista(K, y, l, loss='hinge', penalty='l11', n_iter=500):
-    """
-    We want to solve a problem of the form y = KB + b
-        where K is a (n_samples, n_kernels*n_samples) matrix.
-
-    arguments
-    ---------
-    K : 2-D numpy array of shape (n, p)
-        K is the concatenation of the p/n kernels
-            where each kernel is of size (n, n)
-
-    y : numpy arrays
-        an array of the labels to predict for each kernel
-        y is of size p
-            where K.shape : (n, p)
-
-    loss : string, optionnal
-        defautl : 'hinge'
-        possible values : 'hinge' or 'least-square'
-        
-    penalty : string, optionnal
-        default : 'l11'
-        possible values : 'l11', 'l22' or 'l21'
-
-    n_iter : int, optionnal
-        number of iterations
-
-    return
-    ------
-    B : ndarray
-    coefficient computed
-    """
+class Fista(BaseEstimator):
     
-    step = hinge_step
-    if loss=='hinge':
-        K = np.dot(np.diag(y), K)
-    elif loss=='least-square':
-        step = least_square_step
+    def __init__(self, lambda_=0.5, loss='hinge', penalty='l11', n_iter=500):
+        self.n_iter = n_iter
+        self.lambda_ = lambda_
+        self.loss = loss
+        self.penalty = penalty
 
-    (n_samples, n_features) = K.shape
-    B_0 = B_1 = np.zeros(n_features) # coefficients to compute
-    tol = 10**(-5)
-    Z = B_1
-    tau_1 = 1
-    mu = 1/norm(np.dot(K, K.transpose()))
-    n_kernels = n_features/n_samples
+    def fit(self, K, y):
+        """
+        We want to solve a problem of the form y = KB + b
+            where K is a (n_samples, n_kernels*n_samples) matrix.
 
-    if penalty=='l11':
-        prox = lambda(u):prox_l11(u, l*mu)
-    elif penalty=='l22':
-        prox = lambda(u):prox_l22(u, l*mu)
-    elif penalty=='l21':
-        prox = lambda(u):prox_l21(u, l*mu, n_samples, n_kernels)
-    elif penalty=='l12':
-        prox = lambda(u):prox_l12(u, l*mu, n_samples, n_kernels)
+        arguments
+        ---------
+        K : 2-D numpy array of shape (n, p)
+            K is the concatenation of the p/n kernels
+                where each kernel is of size (n, n)
 
-    for i in range(n_iter):
-        B_0 = B_1 # B_(k-1) = B_(k)
-        tau_0 = tau_1 #tau_(k+1) = tau_k
-        B_1 = prox(Z + mu*step(y, K, Z))
-        tau_1 = (1 + sqrt(1 + 4*tau_0**2))/2
-        Z = B_1 + (tau_0 - 1)/tau_1*(B_1 - B_0)
+        y : numpy arrays
+            an array of the labels to predict for each kernel
+            y is of size p
+                where K.shape : (n, p)
 
-        if norm(B_1 - B_0, 2)/norm(B_1,2) <= tol:
-            print "convergence at iteration : %d" % i
-            return B_1
+        loss : string, optionnal
+            defautl : 'hinge'
+            possible values : 'hinge' or 'least-square'
+            
+        penalty : string, optionnal
+            default : 'l11'
+            possible values : 'l11', 'l22' or 'l21'
 
-    return B_1
+        n_iter : int, optionnal
+            number of iterations
 
+        return
+        ------
+        B : ndarray
+        coefficient computed
+        """
+        
+        step = hinge_step
+        if self.loss=='hinge':
+            K = np.dot(np.diag(y), K)
+        elif self.loss=='least-square':
+            self.step = least_square_step
 
-X = np.array([[1, 2, 1, 2, 4, 2],[1, 0, 0, 2, 0, 0], [0, 0, 1, 0, 0, 2]])
-B_real = np.array([1, 0, -1])
-y = np.array([1, 1, -1])
-B = fista(X, y, 0.5, penalty='l11', n_iter=20)
+        (n_samples, n_features) = K.shape
+        B_0 = B_1 = np.zeros(n_features) # coefficients to compute
+        tol = 10**(-5)
+        Z = B_1
+        tau_1 = 1
+        mu = 1/norm(np.dot(K, K.transpose()))
+        n_kernels = n_features/n_samples
 
+        if self.penalty=='l11':
+            prox = lambda(u):prox_l11(u, self.lambda_*mu)
+        elif self.penalty=='l22':
+            prox = lambda(u):prox_l22(u, self.lambda_*mu)
+        elif self.penalty=='l21':
+            prox = lambda(u):prox_l21(u, self.lambda_*mu, n_samples, n_kernels)
+        elif self.penalty=='l12':
+            prox = lambda(u):prox_l12(u, self.lambda_*mu, n_samples, n_kernels)
 
-X2 = np.random.normal(size=(10, 40))
-y2 = np.sign(np.random.normal(size=10))
-B2 = fista(X2, y2, 0.5, penalty='l11', n_iter=1000)
-print "taux de bonne prediction with l11: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
-B2 = fista(X2, y2, 0.5, penalty='l22', n_iter=1000)
-print "taux de bonne prediction with l22: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
-B2 = fista(X2, y2, 0.5, penalty='l21', n_iter=1000)
-print "taux de bonne prediction with l21: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
-B2 = fista(X2, y2, 0.5, penalty='l12', n_iter=1000)
-print "taux de bonne prediction with l12: %f " % (np.sum(np.equal(np.sign(np.dot(X2, B2)), y2))/10.)
+        for i in range(self.n_iter):
+            B_0 = B_1 # B_(k-1) = B_(k)
+            tau_0 = tau_1 #tau_(k+1) = tau_k
+            B_1 = prox(Z + mu*step(y, K, Z))
+            tau_1 = (1 + sqrt(1 + 4*tau_0**2))/2
+            Z = B_1 + (tau_0 - 1)/tau_1*(B_1 - B_0)
+
+            if norm(B_1 - B_0, 2)/norm(B_1,2) <= tol:
+                print "convergence at iteration : %d" % i
+                break
+        
+        self.coefs = B_1
+        return self
+
+    def predict(self, K):
+        if self.loss=='hinge':
+            return np.sign(np.dot(K, self.coefs))
+        else:
+            return np.dot(K, self.coefs)
+    
+    def prediction_score(self, K, y):
+        if self.loss=='hinge':
+            return np.sum(np.equal(self.predict(K), y))/len(y)
+        else:
+            print "Score not yet implemented for regression\n"
