@@ -143,13 +143,14 @@ def _uncompress_file(file_, delete_archive=True):
             name = os.path.splitext(file_)[0]
             f = file(name, 'w')
             z = f.write(z.read())
+        elif file_.endswith('.txt'):
+            pass
         else:
             tar = tarfile.open(file_, "r")
             tar.extractall(path=data_dir)
             tar.close()
-        if delete_archive:
+        if delete_archive and not file_.endswith('.txt'):
             os.remove(file_)
-            pass
         print '   ...done.'
     except Exception as e:
         print 'error: ', e
@@ -297,24 +298,20 @@ def _get_dataset(dataset_name, file_names, data_dir=None):
 # Dataset downloading functions
 
 def fetch_data(data_dir=None):
-    """Function returning the starplus data, downloading them if needed
+    """Function returning the genetic data, downloading them if needed
 
     Parameters
     ----------
     data_dir: string, optional
         Path of the data directory. Used to force data storage in a specified
         location. Default: None
+        Default location is folder Data in the current directory
 
     Returns
     -------
     data : Bunch
         Dictionary-like object, the interest attributes are :
-        'datas' : a list of 6 numpy arrays representing the data to learn
-        'targets' : list
-                    targets of the data
-        'masks' : the masks for the data. If indices is true, returns the
-            coordinates of the voxels instead of a binary map to deal with
-            sparse matrices.
+        kernel* : the kernel corresponding to its name
 
     Notes
     -----
@@ -347,7 +344,7 @@ def fetch_data(data_dir=None):
 
         full_names = _fetch_dataset('', urls, data_dir=None)
 
-        for index, full_name in enumerate(full_names):
+        for index, full_name in enumerate(full_names[:-1]):
             # Converting data to a more readable format
             print "Converting file %d on 8..." % (index + 1)
             # General information
@@ -368,11 +365,23 @@ def fetch_data(data_dir=None):
                 shutil.rmtree(dataset_dir)
                 raise e
 
+    try:
+        _get_dataset("", ["labels_3588_13.npy"])
+    except IOError:
+        urls = ['http://noble.gs.washington.edu/yeast/labels_3588_13.txt']
+        full_names = _fetch_dataset('', urls, data_dir=None)
+        name = os.path.join(dataset_dir, "labels_3588_13")
+        y = np.genfromtxt(full_names[0]+".txt")
+        y = y[:, 1:]
+        np.save(name + ".npy", y)
+        os.remove(name + ".txt")
+
     print "...done."
 
     data = Bunch()
     for i in data_names:
-        K = np.load(os.path.join(dataset_dir, i + ".npy"))
-        data[i] = K
+        data[i] = np.load(os.path.join(dataset_dir, i + ".npy"))
+
+    data['y'] = np.load(os.path.join(dataset_dir, "labels_3588_13.npy"))
 
     return data

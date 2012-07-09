@@ -146,7 +146,7 @@ class Fista(BaseEstimator):
         self.loss = loss
         self.penalty = penalty
 
-    def fit(self, K, y):
+    def fit(self, K, y, verbose=0):
         """
         We want to solve a problem of the form y = KB + b
             where K is a (n_samples, n_kernels*n_samples) matrix.
@@ -172,6 +172,9 @@ class Fista(BaseEstimator):
 
         n_iter : int, optionnal
             number of iterations
+
+        verbose : int, optionnal
+            1 : plots a graphic of the norm of the coefficients at each iteration
 
         return
         ------
@@ -202,16 +205,25 @@ class Fista(BaseEstimator):
         elif self.penalty=='l12':
             prox = lambda(u):prox_l12(u, self.lambda_*mu, n_samples, n_kernels)
 
+        if verbose==1:
+            self.iter_coefs = list()
+
         for i in range(self.n_iter):
             B_0 = B_1 # B_(k-1) = B_(k)
             tau_0 = tau_1 #tau_(k+1) = tau_k
             B_1 = prox(Z + mu*step(y, K, Z))
             tau_1 = (1 + sqrt(1 + 4*tau_0**2))/2
             Z = B_1 + (tau_0 - 1)/tau_1*(B_1 - B_0)
+            
+            if verbose==1:
+                self.iter_coefs.append(norm(B_1, 2))
 
             if norm(B_1 - B_0, 2)/norm(B_1,2) <= tol:
                 print "convergence at iteration : %d" % i
                 break
+
+        if verbose==1:
+            print "Norm of the coefficients at each iteration : %s" % self.iter_coefs
         
         self.coefs = B_1
         return self
@@ -238,6 +250,8 @@ class Fista(BaseEstimator):
 * coefficients : %s
         """ % (self.penalty, self.loss, score, self.n_iter, self.lambda_,\
                 self.coefs)
+        if self.iter_coefs is not None:
+            text+="\nNorm of the coefficients at each iteration : %s" % self.iter_coefs
         text = text.strip()
         f.write(text)
         f.close()
