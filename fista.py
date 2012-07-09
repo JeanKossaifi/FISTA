@@ -1,7 +1,6 @@
 """
 Module implementing the FISTA algorithm
 """
-
 __author__ = 'Jean KOSSAIFI'
 __licence__ = 'BSD'
 
@@ -191,7 +190,7 @@ class Fista(BaseEstimator):
         tol = 10**(-5)
         Z = B_1
         tau_1 = 1
-        mu = 1/norm(np.dot(K, K.transpose()))
+        mu = 1/norm(np.dot(K, K.transpose()), 2)
         n_kernels = n_features/n_samples
 
         if self.penalty=='l11':
@@ -225,6 +224,20 @@ class Fista(BaseEstimator):
     
     def prediction_score(self, K, y):
         if self.loss=='hinge':
-            return np.sum(np.equal(self.predict(K), y))/len(y)
+            return np.sum(np.equal(self.predict(K), y))*100./len(y)
         else:
             print "Score not yet implemented for regression\n"
+
+    def save(self, K, y, file_name):
+        f = file(file_name, 'w')
+        score = self.prediction_score(K, y)
+        text = """* penalty = %s, loss = %s,
+* prediction_score : %f,
+* n_iterations : %d
+* lambda : %f
+* coefficients : %s
+        """ % (self.penalty, self.loss, score, self.n_iter, self.lambda_,\
+                self.coefs)
+        text = text.strip()
+        f.write(text)
+        f.close()
