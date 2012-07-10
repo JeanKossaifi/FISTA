@@ -141,12 +141,28 @@ def least_square_step(y, K, Z):
 class Fista(BaseEstimator):
     
     def __init__(self, lambda_=0.5, loss='hinge', penalty='l11', n_iter=500):
+        """
+        parameters
+        ----------
+
+        loss : string, optionnal
+            defautl : 'hinge'
+            possible values : 'hinge' or 'least-square'
+            
+        penalty : string, optionnal
+            default : 'l11'
+            possible values : 'l11', 'l22' or 'l21'
+
+        n_iter : int, optionnal
+            number of iterations
+
+        """
         self.n_iter = n_iter
         self.lambda_ = lambda_
         self.loss = loss
         self.penalty = penalty
 
-    def fit(self, K, y, verbose=0):
+    def fit(self, K, y, mu=None, verbose=0):
         """
         We want to solve a problem of the form y = KB + b
             where K is a (n_samples, n_kernels*n_samples) matrix.
@@ -162,16 +178,8 @@ class Fista(BaseEstimator):
             y is of size p
                 where K.shape : (n, p)
 
-        loss : string, optionnal
-            defautl : 'hinge'
-            possible values : 'hinge' or 'least-square'
-            
-        penalty : string, optionnal
-            default : 'l11'
-            possible values : 'l11', 'l22' or 'l21'
-
-        n_iter : int, optionnal
-            number of iterations
+        mu : float, optionnal
+             allow the user to pre-compute mu
 
         verbose : int, optionnal
             1 : plots a graphic of the norm of the coefficients at each iteration
@@ -193,8 +201,10 @@ class Fista(BaseEstimator):
         tol = 10**(-5)
         Z = B_1
         tau_1 = 1
-        mu = 1/norm(np.dot(K, K.transpose()), 2)
         n_kernels = n_features/n_samples
+
+        if mu==None:
+            mu = 1/norm(np.dot(K, K.transpose()), 2)
 
         if self.penalty=='l11':
             prox = lambda(u):prox_l11(u, self.lambda_*mu)
@@ -207,6 +217,7 @@ class Fista(BaseEstimator):
 
         if verbose==1:
             self.iter_coefs = list()
+            self.iter_errors = list()
 
         for i in range(self.n_iter):
             B_0 = B_1 # B_(k-1) = B_(k)
@@ -215,15 +226,22 @@ class Fista(BaseEstimator):
             tau_1 = (1 + sqrt(1 + 4*tau_0**2))/2
             Z = B_1 + (tau_0 - 1)/tau_1*(B_1 - B_0)
             
+            # Compute the error : use max in case norm(B_1)==0
+            error = norm(B_1 - B_0, 2)/max(norm(B_1,2), 0.000001)
+            # for test purpose : verbosity
             if verbose==1:
                 self.iter_coefs.append(norm(B_1, 2))
+                self.iter_errors.append(error)
 
-            if norm(B_1 - B_0, 2)/norm(B_1,2) <= tol:
+            # basic test of convergence
+            if error <= tol:
                 print "convergence at iteration : %d" % i
                 break
 
         if verbose==1:
             print "Norm of the coefficients at each iteration : %s" % self.iter_coefs
+        else:
+            self.iter_coefs = None
         
         self.coefs = B_1
         return self
@@ -235,10 +253,33 @@ class Fista(BaseEstimator):
             return np.dot(K, self.coefs)
     
     def prediction_score(self, K, y):
+        """ TODO : remove this function
+        """
         if self.loss=='hinge':
             return np.sum(np.equal(self.predict(K), y))*100./len(y)
         else:
             print "Score not yet implemented for regression\n"
+     
+
+    def score(self, K, y):
+        """
+        Parameters
+        ----------
+        K : 2D numpy array
+            matrix of observations
+
+        y : numpy array
+            the labels correspondings to K
+
+        Returns
+        -------
+        A percentage of good classification
+        """
+        if self.loss=='hinge':
+            return np.sum(np.equal(self.predict(K), y))*100./len(y)
+        else:
+            print "Score not yet implemented for regression\n"
+
 
     def save(self, K, y, file_name):
         f = file(file_name, 'w')
