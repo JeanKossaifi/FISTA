@@ -27,7 +27,7 @@ def select_lambda(penalty, lambdas, n_folds, K, y, K_name='default'):
     # Computing the coefficients mus for each fold
     print "** Computing the coefficients mus..."
     try:
-        mus = np.load('./mus_%d_folds.npy' % n_folds)
+        mus = np.load('./mus_%s_kernel__%d_folds.npy' % (K_name, n_folds))
     except IOError:
         print "computing the mus for scratch ..."
         mus = Parallel(n_jobs=-1, verbose=2)\
