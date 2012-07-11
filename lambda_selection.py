@@ -21,7 +21,7 @@ def compute_score(estimator, K, y, lambda_, mus, n_folds, kf):
 
     return np.mean(scores)
 
-def select_lambda(penalty, lambdas, n_folds, K, y):
+def select_lambda(penalty, lambdas, n_folds, K, y, K_name='default'):
     estimator = fista.Fista(penalty=penalty)
     folds = KFold(K.shape[0], n_folds)
     # Computing the coefficients mus for each fold
@@ -34,7 +34,7 @@ def select_lambda(penalty, lambdas, n_folds, K, y):
             (delayed(_compute_mu)(K[train, :], n_folds)\
             for train, test in folds)
         mus = np.array(mus)
-        np.save('mus_%d_folds.npy' % n_folds, mus)
+        np.save('mus_%s_kernel__%d_folds.npy' % (K_name, n_folds), mus)
     print "\n\n** ... MUS : DONE\n\n"
     # Computing score mean score for each lambda
     print "** Computing scores ..."

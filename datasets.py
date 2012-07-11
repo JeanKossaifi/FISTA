@@ -323,11 +323,11 @@ def fetch_data(data_dir=None):
     Documentation and data :
     http://noble.gs.washington.edu/yeast/
     """
-    data_names = ['kernel_matrix_pfamdom_cn_3588',
+    data_names = [#'kernel_matrix_pfamdom_cn_3588',
                   'kernel_matrix_tap_n_3588',
                   'kernel_matrix_mpi_n_3588',
                   'kernel_matrix_mgi_n_3588',
-                  'kernel_matrix_exp_diff_n_3588',
+                  #'kernel_matrix_exp_diff_n_3588',
                   'kernel_matrix_exp_gauss_n_3588',
                   'kernel_matrix_pfamdom_exp_cn_3588',
                   'kernel_matrix_sw_cn_3588']
@@ -379,9 +379,19 @@ def fetch_data(data_dir=None):
     print "...done."
 
     data = Bunch()
-    for i in data_names:
-        data[i] = np.load(os.path.join(dataset_dir, i + ".npy"))
+    data['kernels'] = Bunch()
+    for i, e in enumerate(data_names):
+        Ki = np.load(os.path.join(dataset_dir, e + ".npy"))
+        if i==0:
+            K = Ki
+        else:
+            K = np.concatenate((K, Ki), axis=1)
+        data['kernels'][e] = Ki
 
     data['y'] = np.load(os.path.join(dataset_dir, "labels_3588_13.npy"))
+    data['K'] = K
 
     return data
+
+
+

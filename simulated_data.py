@@ -13,6 +13,6 @@ fista.penalty='l21'
 fista.fit(X, y)
 print "taux de bonne prediction with l21: %f " % fista.prediction_score(X, y)
 fista.penalty='l22'
-fista.fit(X, y)
+fista.fit(X, y, verbose=1)
 print "taux de bonne prediction with l22: %f " % fista.prediction_score(X, y)
 

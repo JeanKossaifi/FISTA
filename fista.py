@@ -5,13 +5,14 @@ __author__ = 'Jean KOSSAIFI'
 __licence__ = 'BSD'
 
 import numpy as np
+import sys
 from scipy.linalg import norm
 from math import sqrt
 from sklearn.base import BaseEstimator
 
 def prox_l11(u, l):
     """
-    l(1, 1, 2) norm
+    proximity operator l(1, 1, 2) norm
 
     parameters
     ----------
@@ -31,13 +32,13 @@ def prox_l11(u, l):
 
 def prox_l22(u, l):
     """
-    l(2, 2, 2) norm, see prox_l11
+    proximity operator l(2, 2, 2) norm, see prox_l11
     """
     return 1./(1.+l)*u
 
 def prox_l21_1(u, l, n_samples, n_kernels):
     """
-    l(2, 1, 1) norm, see prox_l11
+    proximity operator l(2, 1, 1) norm, see prox_l11
     """
     res = np.array([max(1. - l/norm(u[np.arange(n_kernels)*n_samples+i], 2), 0.) for i in range(n_samples)])
     for i in range(n_kernels-1):
@@ -46,7 +47,7 @@ def prox_l21_1(u, l, n_samples, n_kernels):
 
 def prox_l21(u, l, n_samples, n_kernels):
     """
-    l(2, 1, 2) norm, see prox_l11
+    proximity operator l(2, 1, 2) norm, see prox_l11
     """
     res = np.zeros(n_samples*n_kernels)
     for i in range(n_kernels):
@@ -55,6 +56,9 @@ def prox_l21(u, l, n_samples, n_kernels):
     return u*res
 
 def prox_l12(u, l, n_samples, n_kernels):
+    """
+    proximity operator for l(1, 2, 2) norm, see prox_l11
+    """
     u = u.reshape(n_kernels, n_samples)
     for i in u:
         Ml, sum_Ml = compute_M(i, l, n_samples)
@@ -65,7 +69,7 @@ def compute_M(u, l, n_samples):
     """
     parameters
     ----------
-    u : ndarray
+    u : ndarray of size (n_samples * n_samples)
         subvector for a single kernel
 
     l : integer
@@ -105,6 +109,11 @@ def compute_M(u, l, n_samples):
               but  u(Ml)=u(2)=1   <= l*... =3  (S1 is not verified)
 
     Conclusion : Ml = 1
+
+    Note 
+    ----
+    In fact, in the previous example, Ml = 2 because in python, indexing
+    starts at 0, so Ml=(Ml + 1)
     """
     u = np.sort(np.abs(u))[::-1]
     S1 = u[1:] - l*(np.cumsum(u)[:-1] - (np.arange(n_samples-1)+1)*u[1:])
@@ -136,6 +145,25 @@ def hinge_step(y, K, Z):
     return np.dot(K.transpose(), np.maximum(1 - np.dot(K, Z), 0))
 
 def least_square_step(y, K, Z):
+    """
+    Returns the point in witch we apply gradient descent
+
+    parameters
+    ----------
+    y : np-array
+        the labels vector
+
+    K : 2D np-array
+        the concatenation of all the kernels, of shape
+        n_samples, n_kernels*n_samples
+
+    Z : a linear combination of the last two coefficient vectors
+
+    returns
+    -------
+    res : np-array of shape n_samples*,_kernels
+          a point of the space where we will apply gradient descent
+    """
     return np.dot(K.transpose(), y - np.dot(K,Z))
     
 class Fista(BaseEstimator):
@@ -180,14 +208,15 @@ class Fista(BaseEstimator):
 
         mu : float, optionnal
              allow the user to pre-compute mu
+             (the computation of mu can be very slow, so that parameter is very
+             usefull if you were to use several times the algorithm on the same data)
 
         verbose : int, optionnal
             1 : plots a graphic of the norm of the coefficients at each iteration
 
-        return
-        ------
-        B : ndarray
-        coefficient computed
+        returns
+        -------
+        self
         """
         
         step = hinge_step
@@ -197,11 +226,12 @@ class Fista(BaseEstimator):
             self.step = least_square_step
 
         (n_samples, n_features) = K.shape
+        n_kernels = n_features/n_samples # We assume each kernel is a square matrix
+
         B_0 = B_1 = np.zeros(n_features) # coefficients to compute
         tol = 10**(-5)
-        Z = B_1
+        Z = B_1 # a linear combination of the coefficients of the 2 last iterations
         tau_1 = 1
-        n_kernels = n_features/n_samples
 
         if mu==None:
             mu = 1/norm(np.dot(K, K.transpose()), 2)
@@ -232,6 +262,7 @@ class Fista(BaseEstimator):
             if verbose==1:
                 self.iter_coefs.append(norm(B_1, 2))
                 self.iter_errors.append(error)
+                sys.stderr.write("Iteration : %d\r" % i )
 
             # basic test of convergence
             if error <= tol:
@@ -239,7 +270,8 @@ class Fista(BaseEstimator):
                 break
 
         if verbose==1:
-            print "Norm of the coefficients at each iteration : %s" % self.iter_coefs
+            print "Norm of the coefficients at each iteration : %s"\
+                    % self.iter_coefs
         else:
             self.iter_coefs = None
         
@@ -247,13 +279,24 @@ class Fista(BaseEstimator):
         return self
 
     def predict(self, K):
+        """
+        returns the prediction associated to the Kernels represented by K
+
+        parameters
+        ----------
+        K : ndarray of size (n_samples, n_kernels*n_samples)
+
+        returns
+        -------
+        ndarray : the prediction associated to K
+        """
         if self.loss=='hinge':
             return np.sign(np.dot(K, self.coefs))
         else:
             return np.dot(K, self.coefs)
     
     def prediction_score(self, K, y):
-        """ TODO : remove this function
+        """ TODO : remove this method
         """
         if self.loss=='hinge':
             return np.sum(np.equal(self.predict(K), y))*100./len(y)
@@ -273,7 +316,7 @@ class Fista(BaseEstimator):
 
         Returns
         -------
-        A percentage of good classification
+        The percentage of good classification for K
         """
         if self.loss=='hinge':
             return np.sum(np.equal(self.predict(K), y))*100./len(y)
@@ -282,6 +325,18 @@ class Fista(BaseEstimator):
 
 
     def save(self, K, y, file_name):
+        """
+        Saves the information contained in the class in the file_name file
+        
+        parameters
+        ----------
+        K : ndarray
+
+        y : labels associated to K
+
+        file_name : string
+            name of the file in witch save the data
+        """
         f = file(file_name, 'w')
         score = self.prediction_score(K, y)
         text = """* penalty = %s, loss = %s,
