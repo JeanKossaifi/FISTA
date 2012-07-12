@@ -344,7 +344,7 @@ def fetch_data(data_dir=None):
 
         full_names = _fetch_dataset('', urls, data_dir=None)
 
-        for index, full_name in enumerate(full_names[:-1]):
+        for index, full_name in enumerate(full_names):
             # Converting data to a more readable format
             print "Converting file %d on 8..." % (index + 1)
             # General information
