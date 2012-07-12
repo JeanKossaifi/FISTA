@@ -265,7 +265,7 @@ class Fista(BaseEstimator):
                 sys.stderr.write("Iteration : %d\r" % i )
 
             # basic test of convergence
-            if error <= tol:
+            if error <= tol and i>10:
                 print "convergence at iteration : %d" % i
                 break
 

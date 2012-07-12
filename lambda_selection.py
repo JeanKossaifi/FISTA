@@ -22,7 +22,7 @@ def compute_score(estimator, K, y, lambda_, mus, n_folds, kf):
     return np.mean(scores)
 
 def select_lambda(penalty, lambdas, n_folds, K, y, K_name='default'):
-    estimator = fista.Fista(penalty=penalty)
+    estimator = fista.Fista(penalty=penalty, n_iter=1500)
     folds = KFold(K.shape[0], n_folds)
     # Computing the coefficients mus for each fold
     print "** Computing the coefficients mus..."
