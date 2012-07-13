@@ -31,6 +31,8 @@ def test_prox_l21():
     assert_array_equal(np.zeros(8), prox_l21(u, l, 4, 2))
     l = 1
     assert_array_equal(u*0.5, prox_l21(u, l, 4, 2))
+    u = np.array([1., 1., 1., 1., 0., 0., 2., 0.])
+    assert_array_equal([0.5, 0.5, 0.5, 0.5, 0, 0, 1, 0], prox_l21(u, l, 4, 2))
 
 def test_compute_M():
     l = 1

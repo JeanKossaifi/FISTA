@@ -9,6 +9,8 @@ import sys
 from scipy.linalg import norm
 from math import sqrt
 from sklearn.base import BaseEstimator
+from sklearn.datasets.base import Bunch
+
 
 def prox_l11(u, l):
     """
@@ -53,17 +55,18 @@ def prox_l21(u, l, n_samples, n_kernels):
     for i in range(n_kernels):
         res[i*n_samples:(i+1)*n_samples] =\
                 max(1. - l/norm(u[i*n_samples:(i+1)*n_samples], 2), 0.)
-    return u*res
+    res = res*u
+    return res
 
 def prox_l12(u, l, n_samples, n_kernels):
     """
     proximity operator for l(1, 2, 2) norm, see prox_l11
     """
-    u = u.reshape(n_kernels, n_samples)
-    for i in u:
+    for i in u.reshape(n_kernels, n_samples):
         Ml, sum_Ml = compute_M(i, l, n_samples)
         i = np.sign(i)*np.maximum(np.abs(i)-(l*sum_Ml)/((1+l*Ml)*norm(i, 2)), 0)
-    return u.reshape(n_kernels*n_samples)
+    return u
+
 
 def compute_M(u, l, n_samples):
     """
@@ -304,7 +307,7 @@ class Fista(BaseEstimator):
             print "Score not yet implemented for regression\n"
      
 
-    def score(self, K, y):
+    def score(self, K, y, file_name):
         """
         Parameters
         ----------
@@ -319,6 +322,7 @@ class Fista(BaseEstimator):
         The percentage of good classification for K
         """
         if self.loss=='hinge':
+            self.save(K, y, file_name)
             return np.sum(np.equal(self.predict(K), y))*100./len(y)
         else:
             print "Score not yet implemented for regression\n"
@@ -337,17 +341,15 @@ class Fista(BaseEstimator):
         file_name : string
             name of the file in witch save the data
         """
-        f = file(file_name, 'w')
         score = self.prediction_score(K, y)
-        text = """* penalty = %s, loss = %s,
-* prediction_score : %f,
-* n_iterations : %d
-* lambda : %f
-* coefficients : %s
-        """ % (self.penalty, self.loss, score, self.n_iter, self.lambda_,\
-                self.coefs)
+        dic = Bunch()
+        dic['penalty'] = self.penalty
+        dic['loss'] = self.loss
+        dic['score'] = score
+        dic['n_iter'] = self.n_iter
+        dic['lambda'] = self.lambda_
+        dic['coefs'] = self.coefs
         if self.iter_coefs is not None:
-            text+="\nNorm of the coefficients at each iteration : %s" % self.iter_coefs
-        text = text.strip()
-        f.write(text)
-        f.close()
+            dic['iter_coefs'] = self.iter_coefs
+            dic['iter_errors'] = self.iter_errors
+        np.save(file_name, dic)
