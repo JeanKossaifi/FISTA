@@ -307,7 +307,7 @@ class Fista(BaseEstimator):
             print "Score not yet implemented for regression\n"
      
 
-    def score(self, K, y, file_name):
+    def score(self, K, y, file_name=None):
         """
         Parameters
         ----------
@@ -322,7 +322,8 @@ class Fista(BaseEstimator):
         The percentage of good classification for K
         """
         if self.loss=='hinge':
-            self.save(K, y, file_name)
+            if file_name is not None:
+                self.save(K, y, file_name)
             return np.sum(np.equal(self.predict(K), y))*100./len(y)
         else:
             print "Score not yet implemented for regression\n"
