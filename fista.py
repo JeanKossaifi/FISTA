@@ -42,21 +42,18 @@ def prox_l21_1(u, l, n_samples, n_kernels):
     """
     proximity operator l(2, 1, 1) norm, see prox_l11
     """
-    res = np.array([max(1. - l/norm(u[np.arange(n_kernels)*n_samples+i], 2), 0.) for i in range(n_samples)])
-    for i in range(n_kernels-1):
-        res = np.concatenate((res, res))
-    return u*res
+    res = [max(1. - l/norm(u[np.arange(n_kernels)*n_samples+i], 2), 0.)
+            for i in range(n_samples)]*n_kernels
+    return u*np.array(res)
 
 def prox_l21(u, l, n_samples, n_kernels):
     """
     proximity operator l(2, 1, 2) norm, see prox_l11
     """
-    res = np.zeros(n_samples*n_kernels)
-    for i in range(n_kernels):
-        res[i*n_samples:(i+1)*n_samples] =\
-                max(1. - l/norm(u[i*n_samples:(i+1)*n_samples], 2), 0.)
-    res = res*u
-    return res
+    for i in u.reshape(n_kernels, n_samples):
+        i *=  max(1. - l/norm(i, 2), 0.)
+    return u
+
 
 def prox_l12(u, l, n_samples, n_kernels):
     """
@@ -64,9 +61,9 @@ def prox_l12(u, l, n_samples, n_kernels):
     """
     for i in u.reshape(n_kernels, n_samples):
         Ml, sum_Ml = compute_M(i, l, n_samples)
-        i = np.sign(i)*np.maximum(np.abs(i)-(l*sum_Ml)/((1+l*Ml)*norm(i, 2)), 0)
+        i = np.sign(i)*np.maximum(
+                np.abs(i)-(l*sum_Ml)/((1+l*Ml)*norm(i, 2)), 0)
     return u
-
 
 def compute_M(u, l, n_samples):
     """
@@ -265,7 +262,8 @@ class Fista(BaseEstimator):
             if verbose==1:
                 self.iter_coefs.append(norm(B_1, 2))
                 self.iter_errors.append(error)
-                sys.stderr.write("Iteration : %d\r" % i )
+                # sys.stderr.write("Iteration : %d\r" % i )
+                print "iteration %d" % i
 
             # basic test of convergence
             if error <= tol and i>10:
