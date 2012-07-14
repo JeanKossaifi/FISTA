@@ -28,7 +28,7 @@ def _load_mu(K, n_folds, folds, K_name):
     return mus
 
 def _KFold(y, n_folds, n_samples, n_kernels):
-    return [(train, np.tile(train, n_kernels), test) for train, test in StratifiedKFold(y, n_folds)]
+    return [(train, np.tile(train, n_kernels), test) for train, test in StratifiedKFold(y, n_folds, indices=False)]
 
 def _sub_score(estimator, K_train, y_train, mu, K_test, y_test, file_name):
     return estimator.fit(K_train, y_train, mu, verbose=1).score(
