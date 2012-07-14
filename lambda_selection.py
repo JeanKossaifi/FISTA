@@ -27,7 +27,7 @@ def _compute_score(estimator, K, y, lambda_, mus, n_folds, kf, n_samples, n_kern
     return np.mean(scores)
 
 def select_lambda(penalty, lambdas, n_folds, K, y, K_name='default'):
-    estimator = fista.Fista(penalty=penalty, n_iter=10)
+    estimator = fista.Fista(penalty=penalty, n_iter=1500)
     n_samples, n_features = K.shape
     n_kernels = n_features / n_samples
     folds = _KFold(y, n_folds, n_samples, n_kernels)
@@ -45,7 +45,7 @@ def select_lambda(penalty, lambdas, n_folds, K, y, K_name='default'):
     print "\n\n** ... MUS : DONE\n\n"
     # Computing score mean score for each lambda
     print "** Computing scores ..."
-    scores = Parallel(n_jobs=1, verbose=2)\
+    scores = Parallel(n_jobs=-1, verbose=2)\
             (delayed(_compute_score)\
             (clone(estimator), K, y, i, mus, n_folds, folds, n_samples, n_kernels)\
              for i in lambdas) 

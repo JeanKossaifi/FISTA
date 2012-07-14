@@ -42,9 +42,9 @@ def prox_l21_1(u, l, n_samples, n_kernels):
     """
     proximity operator l(2, 1, 1) norm, see prox_l11
     """
-    res = [max(1. - l/norm(u[np.arange(n_kernels)*n_samples+i], 2), 0.)
-            for i in range(n_samples)]*n_kernels
-    return u*np.array(res)
+    return u*np.tile(np.array([
+        max(1. - l/norm(u[np.arange(n_kernels)*n_samples+i], 2), 0.)
+            for i in range(n_samples)]), n_kernels)
 
 def prox_l21(u, l, n_samples, n_kernels):
     """
@@ -270,9 +270,10 @@ class Fista(BaseEstimator):
                 print "convergence at iteration : %d" % i
                 break
 
-#        if verbose==1:
-#            print "Norm of the coefficients at each iteration : %s"\
-#                    % self.iter_coefs
+        if verbose==1:
+            #print "Norm of the coefficients at each iteration : %s"\
+            #        % self.iter_coefs
+            pass
         else:
             self.iter_coefs = None
         
