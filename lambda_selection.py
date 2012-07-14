@@ -25,7 +25,7 @@ def compute_score(estimator, K, y, lambda_, mus, n_folds, kf, n_samples, n_kerne
 #        for i in range(n_kernels):
 #            test_col.extend(test+n_samples*i)
         # computing the score
-        scores[i] = estimator.fit(K[train, :][:, train_col], y[train, :], mus[i], verbose=1).score(
+        scores[i] = estimator.fit(K[train, :][:, train_col], y[train, :], verbose=1).score(
                 K[test, :][:, train_col], y[test, :])
 
     return np.mean(scores)
