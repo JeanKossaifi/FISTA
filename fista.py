@@ -262,17 +262,17 @@ class Fista(BaseEstimator):
             if verbose==1:
                 self.iter_coefs.append(norm(B_1, 2))
                 self.iter_errors.append(error)
-                # sys.stderr.write("Iteration : %d\r" % i )
-                print "iteration %d" % i
+                sys.stderr.write("Iteration : %d\r" % i )
+                # print "iteration %d" % i
 
             # basic test of convergence
             if error <= tol and i>10:
                 print "convergence at iteration : %d" % i
                 break
 
-        if verbose==1:
-            print "Norm of the coefficients at each iteration : %s"\
-                    % self.iter_coefs
+#        if verbose==1:
+#            print "Norm of the coefficients at each iteration : %s"\
+#                    % self.iter_coefs
         else:
             self.iter_coefs = None
         

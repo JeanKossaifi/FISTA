@@ -10,7 +10,9 @@ name = 'all'
 norm = 'l12'
 K = data.K
 y = data.y[:, 12]
-lambdas = [10**i for i in range(-4, 4)]
+
+#lambdas = [10**i for i in range(-4, 4)]
+lambdas = [-0.1, 0, 0.1]
 
 # Selection
 t1 = time()
