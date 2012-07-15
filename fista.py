@@ -12,6 +12,18 @@ from sklearn.base import BaseEstimator
 from sklearn.datasets.base import Bunch
 
 
+def norm_l12(u, n_samples, n_kernels):
+    """
+    Returns the l12 norm of the vector u
+    """
+    return np.sum(np.sum(np.reshape(np.abs(u), (n_kernels, n_samples)), axis=1)**2)**0.5
+
+def norm_l21(u, n_samples, n_kernels):
+    """
+    Returns the l21 norm of the vector u
+    """
+    return np.sum(np.sum(np.reshape(np.abs(u)**2, (n_kernels, n_samples)), axis=1)**0.5)
+
 def prox_l11(u, l):
     """
     proximity operator l(1, 1, 2) norm
@@ -51,7 +63,7 @@ def prox_l21(u, l, n_samples, n_kernels):
     proximity operator l(2, 1, 2) norm, see prox_l11
     """
     for i in u.reshape(n_kernels, n_samples):
-        i *=  max(1. - l/norm(i, 2), 0.)
+        i *=  max(1. - l/max(norm(i, 2), 0.00000000001), 0.)
     return u
 
 
