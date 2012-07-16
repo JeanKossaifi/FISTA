@@ -9,10 +9,11 @@ from scipy.linalg import norm
 
 import fista
 
-def _compute_mu(K, n_folds):
-    return 1/norm(np.dot(K, K.transpose()), 2)
+def _compute_mu(K, y, n_folds):
+    K2 = np.dot(np.diag(y), K)
+    return 1/norm(np.dot(K2, K2.transpose()), 2)
 
-def _load_mu(K, n_folds, folds, K_name):
+def _load_mu(K, y, n_folds, folds, K_name):
     # Computing the coefficients mus for each fold
     print "** Computing the coefficients mus..."
     try:
@@ -21,7 +22,8 @@ def _load_mu(K, n_folds, folds, K_name):
         print "computing the mus for scratch ..."
         mus = Parallel(n_jobs=-1, verbose=2)\
                (delayed(_compute_mu)(K[train_lines, :][:, train_columns],
-                   n_folds) for train_lines, train_columns, test in folds)
+                   y[train_lines], n_folds) 
+                       for train_lines, train_columns, test in folds)
         mus = np.array(mus)
         np.save('mus_%s_kernel__%d_folds.npy' % (K_name, n_folds), mus)
     print "\n\n** ... MUS : DONE\n\n"
@@ -38,7 +40,7 @@ def _compute_save_score(estimator, K, y, lambda_, mus, n_folds, kf, K_name):
     estimator.lambda_ = lambda_
     file_name = "save_estimator_cross_validation__lambda_%f__n_folds_%d___norm_%s__kernel_%s" % (lambda_, n_folds, estimator.penalty, K_name)
     # Cross_validation loop
-    scores = Parallel(n_jobs=2, verbose=3)(
+    scores = Parallel(n_jobs=1, verbose=3)(
             delayed(_sub_score)(clone(estimator),
                  K[train_lines, :][:, train_columns], y[train_lines],
                  mus[i], K[test, :][:, train_columns], y[test],
@@ -64,10 +66,10 @@ def select_lambda(penalty, lambdas, n_folds, K, y, K_name='default'):
     n_kernels = n_features / n_samples
     folds = _KFold(y, n_folds, n_samples, n_kernels)
     # Loading mus
-    mus = _load_mu(K, n_folds, folds, K_name)
+    mus = _load_mu(K, y, n_folds, folds, K_name)
     # Computing score mean score for each lambda
     print "** Computing scores ..."
-    scores = Parallel(n_jobs=1, verbose=2)\
+    scores = Parallel(n_jobs=2, verbose=2)\
             (delayed(_compute_score)\
             (clone(estimator), K, y, i, mus, n_folds, folds)
              for i in lambdas) 
@@ -86,7 +88,7 @@ def cross_val(penalty, lambda_, n_folds, K, y, K_name='default'):
     n_kernels = n_features / n_samples
     folds = _KFold(y, n_folds, n_samples, n_kernels)
     # Loading the coefficients mus for each fold
-    mus = _load_mu(K, n_folds, folds, K_name)
+    mus = _load_mu(K, y, n_folds, folds, K_name)
     # Computing score mean score for each lambda
     print "** Computing scores ..."
     mean, std, scores = _compute_save_score(estimator, K, y, lambda_, mus, n_folds, folds, K_name)

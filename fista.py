@@ -177,6 +177,13 @@ def least_square_step(y, K, Z):
           a point of the space where we will apply gradient descent
     """
     return np.dot(K.transpose(), y - np.dot(K,Z))
+
+def _load_mus(K):
+    try:
+        mu = np.load('./.%s.npy' % sha1(K))
+    except:
+        mu = 1/norm(np.dot(K, K.transpose()), 2)
+    return mu
     
 class Fista(BaseEstimator):
     
