@@ -10,6 +10,7 @@ from scipy.linalg import norm
 from math import sqrt
 from sklearn.base import BaseEstimator
 from sklearn.datasets.base import Bunch
+from hashlib import sha1
 
 
 def norm_l12(u, n_samples, n_kernels):
@@ -54,16 +55,21 @@ def prox_l21_1(u, l, n_samples, n_kernels):
     """
     proximity operator l(2, 1, 1) norm, see prox_l11
     """
-    return u*np.tile(np.array([
-        max(1. - l/norm(u[np.arange(n_kernels)*n_samples+i], 2), 0.)
-            for i in range(n_samples)]), n_kernels)
+    return (u.reshape(n_kernels, n_samples) *\
+        [max(1. - l/norm(u[np.arange(n_kernels)*n_samples+i], 2), 0.)
+            for i in range(n_samples)]).reshape(-1)
+
 
 def prox_l21(u, l, n_samples, n_kernels):
     """
     proximity operator l(2, 1, 2) norm, see prox_l11
+
+    warning
+    -------
+    Division by zero may happen
     """
     for i in u.reshape(n_kernels, n_samples):
-        i *=  max(1. - l/max(norm(i, 2), 0.00000000001), 0.)
+        i *=  max(1. - l/norm(i, 2), 0.)
     return u
 
 
@@ -178,11 +184,17 @@ def least_square_step(y, K, Z):
     """
     return np.dot(K.transpose(), y - np.dot(K,Z))
 
-def _load_mus(K):
+def _load_mu(K):
+    print "# Loading mu ..."
     try:
-        mu = np.load('./.%s.npy' % sha1(K))
+        mu = np.load('./.%s.npy' % sha1(K).hexdigest())
+        print "   Trying to load mu ..."
     except:
+        print "  Computing mu ..."
         mu = 1/norm(np.dot(K, K.transpose()), 2)
+	print "  Saving and returning mu ..."
+        np.save('./.%s.npy' % sha1(K).hexdigest(), mu)
+    print "   ... Done."
     return mu
     
 class Fista(BaseEstimator):
@@ -240,7 +252,9 @@ class Fista(BaseEstimator):
         
         step = hinge_step
         if self.loss=='hinge':
-            K = np.dot(np.diag(y), K)
+            K = y[:, np.newaxis] * X
+            # Equivalent to K = np.dot(np.diag(y), X) but very faster
+
         elif self.loss=='least-square':
             self.step = least_square_step
 
@@ -253,7 +267,7 @@ class Fista(BaseEstimator):
         tau_1 = 1
 
         if mu==None:
-            mu = 1/norm(np.dot(K, K.transpose()), 2)
+            mu = _load_mu(K)
 
         if self.penalty=='l11':
             prox = lambda(u):prox_l11(u, self.lambda_*mu)
