@@ -7,6 +7,7 @@ from numpy.testing import assert_array_equal
 from nose.tools import assert_true
 
 from ..fista import prox_l11, prox_l22, prox_l21, compute_M, norm_l12, norm_l21
+from ..fista import Fista
 
 def test_prox_l11():
     u = np.ones(3)
@@ -50,3 +51,19 @@ def test_norm_l21():
     u = np.ones(8)
     n_kernels, n_samples = 2, 4
     assert norm_l21(u, n_samples, n_kernels) == 4
+
+def test_Fista():
+    fista = Fista(lambda_=0.5, loss='hinge', penalty='l11', n_iter=1000)
+    X = np.random.normal(size=(10, 40))
+    y = np.sign(np.random.normal(size=10))
+    fista.fit(X, y)
+    assert fista.prediction_score(X, y) == 1
+    fista.penalty='l12'
+    fista.fit(X, y)
+    assert fista.prediction_score(X, y) == 1
+    fista.penalty='l21'
+    fista.fit(X, y)
+    assert fista.prediction_score(X, y) == 1
+    fista.penalty='l22'
+    fista.fit(X, y, verbose=1)
+    assert fista.prediction_score(X, y) == 1
