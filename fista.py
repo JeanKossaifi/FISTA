@@ -1,6 +1,8 @@
 """
 Module implementing the FISTA algorithm
 """
+from __future__ import division
+
 __author__ = 'Jean KOSSAIFI'
 __licence__ = 'BSD'
 
@@ -12,7 +14,6 @@ from sklearn.base import BaseEstimator
 from sklearn.datasets.base import Bunch
 from hashlib import sha1
 import time
-
 
 def norm_l12(u, n_samples, n_kernels):
     """ Returns the l12 norm of the vector u
@@ -175,7 +176,7 @@ def prox_l12(u, l, n_samples, n_kernels):
     for i in u.reshape(n_kernels, n_samples):
         Ml, sum_Ml = compute_M(i, l, n_samples)
         i = np.sign(i)*np.maximum(
-                np.abs(i)-(l*sum_Ml)/((1+l*Ml)*norm(i, 2)), 0)
+                np.abs(i)-(l*sum_Ml)/((1.+l*Ml)*norm(i, 2)), 0.)
     return u
 
 def compute_M(u, lambda_, n_samples):
@@ -215,7 +216,8 @@ def compute_M(u, lambda_, n_samples):
         and
         u(Ml) > l * sum(k=1..Ml) (u(k) - u(Ml)              (S2)
     Note that in that definition, Ml is in [1..Ml]
-    In python, Ml will be in [0..(Ml-1)], so we must take care of indices. That's why, at the end, we add 1 to the result
+    In python, while Ml is in [1..(Ml-1)], indices will be in [0..(Ml-1)], so we must take care of indices.
+    That's why, we consider Ml is in [0..(Ml-1)] and, at the end, we add 1 to the result
 
     Example
     -------
@@ -225,6 +227,9 @@ def compute_M(u, lambda_, n_samples):
     Then u = [3 2 1 0]
     let l = 1
     Ml is in {0, 1, 2} (not 3 because we also consider Ml+1)
+    # Note : in fact Ml is in {1, 2, 3} but it is more convenient
+    # to consider it is in {0, 1, 2} as indexing in python starts at 0
+    # We juste have to add 1 to the final result
 
     if Ml = 0 then S1 = 1 and S2 = 0
     if Ml = 1 then S1 = 3 and S2 = 1
@@ -242,14 +247,13 @@ def compute_M(u, lambda_, n_samples):
     Conclusion : Ml = 1 + 1 !!
     Ml = 2 because in python, indexing starts at 0, so Ml +1
 
-    Notes
-    -----
     """
     u = np.sort(np.abs(u))[::-1]
     S1 = u[1:] - lambda_*(np.cumsum(u)[:-1] - (np.arange(n_samples-1)+1)*u[1:])
     S2 = u[:-1] - lambda_*(np.cumsum(u)[:-1] - (np.arange(n_samples-1)+1)*u[:-1])
-    Ml = np.argmax((S1 <= 0) & (S2 > 0)) + 1
-    return Ml, np.sum(u[:Ml])
+    Ml = np.argmax((S1<=0.) & (S2>0.)) + 1.
+
+    return Ml, np.sum(u[:Ml]) # u[:Ml] = u[0, 1, ..., Ml-1] !!
 
 
 def hinge_step(y, K, Z):
@@ -361,8 +365,8 @@ class Fista(BaseEstimator):
              (the computation of mu can be very slow, so that parameter is very
              usefull if you were to use several times the algorithm on the same data)
 
-        verbose : int, optionnal
-            1 : plots a graphic of the norm of the coefficients at each iteration
+        verbose : {0, 1}, optionnal
+            verbosity of the method : 1 will display informations while 0 will display nothing
             default = 0
 
         Returns
@@ -382,7 +386,7 @@ class Fista(BaseEstimator):
         n_kernels = n_features/n_samples # We assume each kernel is a square matrix
 
         B_0 = B_1 = np.zeros(n_features) # coefficients to compute
-        tol = 10**(-5)
+        tol = 10**(-9)
         Z = B_1 # a linear combination of the coefficients of the 2 last iterations
         tau_1 = 1
 
@@ -419,8 +423,9 @@ class Fista(BaseEstimator):
                 # print "iteration %d" % i
 
             # basic test of convergence
-            if error <= tol and i>10:
-                print "convergence at iteration : %d" % i
+            if error <= tol and i>5:
+                if verbose==1:
+                    print "convergence at iteration : %d" % i
                 break
 
         if verbose==1:
@@ -430,7 +435,7 @@ class Fista(BaseEstimator):
         else:
             self.iter_coefs = None
         
-        self.coefs = B_1
+        self.coefs_ = B_1
         return self
 
     def predict(self, K):
@@ -446,9 +451,9 @@ class Fista(BaseEstimator):
         ndarray : the prediction associated to K
         """
         if self.loss=='hinge':
-            return np.sign(np.dot(K, self.coefs))
+            return np.sign(np.dot(K, self.coefs_))
         else:
-            return np.dot(K, self.coefs)
+            return np.dot(K, self.coefs_)
 
     def score(self, K, y, file_name=None):
         """ Returns the score prediction for the given data
@@ -496,7 +501,7 @@ class Fista(BaseEstimator):
         dic['score'] = score
         dic['n_iter'] = self.n_iter
         dic['lambda'] = self.lambda_
-        dic['coefs'] = self.coefs
+        dic['coefs_'] = self.coefs_
         if self.iter_coefs is not None:
             dic['iter_coefs'] = self.iter_coefs
             dic['iter_errors'] = self.iter_errors
