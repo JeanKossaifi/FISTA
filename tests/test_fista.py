@@ -1,3 +1,5 @@
+from __future__ import division
+
 __author__ = 'Jean KOSSAIFI'
 __license__ = 'BSD'
 
@@ -42,8 +44,11 @@ def test_prox_l12():
     assert_array_equal(u, prox_l12(u, l, 4, 2))
 
     l = 1
-    u = np.array([0, 3, 4, 0])
-    assert_array_equal(u, prox_l12(u, l, 4, 2))
+    # ! u must be of dtype np.float
+    u = np.array([0, 3, 4, 0], dtype=np.float)
+    res = u - 7/15
+    res[0] = res[3] = 0
+    assert_array_equal(res, prox_l12(u, l, 4, 1))
 
 def test_compute_M():
     l = 1

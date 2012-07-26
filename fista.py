@@ -154,7 +154,9 @@ def prox_l21(u, l, n_samples, n_kernels):
 
     """
     for i in u.reshape(n_kernels, n_samples):
-        i *=  max(1. - l/max(1e-09, norm(i, 2)), 0.)
+        i[:] *=  max(1. - l/max(1e-09, norm(i, 2)), 0.)
+        # !! If you do just i *= , u isn't modified
+        # The slice is needed here so that the array can be modified
     return u
 
 
@@ -175,7 +177,8 @@ def prox_l12(u, l, n_samples, n_kernels):
     """
     for i in u.reshape(n_kernels, n_samples):
         Ml, sum_Ml = compute_M(i, l, n_samples)
-        i = np.sign(i)*np.maximum(
+        # i[:] so that u is really modified
+        i[:] = np.sign(i)*np.maximum(
                 np.abs(i)-(l*sum_Ml)/((1.+l*Ml)*norm(i, 2)), 0.)
     return u
 
@@ -385,7 +388,7 @@ class Fista(BaseEstimator):
         (n_samples, n_features) = K.shape
         n_kernels = n_features/n_samples # We assume each kernel is a square matrix
 
-        B_0 = B_1 = np.zeros(n_features) # coefficients to compute
+        B_0 = B_1 = np.zeros(n_features, dtype=np.float) # coefficients to compute
         tol = 10**(-9)
         Z = B_1 # a linear combination of the coefficients of the 2 last iterations
         tau_1 = 1
