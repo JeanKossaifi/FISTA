@@ -154,7 +154,11 @@ def prox_l21(u, l, n_samples, n_kernels):
 
     """
     for i in u.reshape(n_kernels, n_samples):
-        i[:] *=  max(1. - l/max(1e-09, norm(i, 2)), 0.)
+        n = norm(i, 2)
+        if n==0 or n==np.Inf:
+            i[:] = 0
+        else:
+            i[:] *=  max(1. - l/n, 0.)
         # !! If you do just i *= , u isn't modified
         # The slice is needed here so that the array can be modified
     return u
@@ -178,8 +182,12 @@ def prox_l12(u, l, n_samples, n_kernels):
     for i in u.reshape(n_kernels, n_samples):
         Ml, sum_Ml = compute_M(i, l, n_samples)
         # i[:] so that u is really modified
-        i[:] = np.sign(i)*np.maximum(
-                np.abs(i)-(l*sum_Ml)/((1.+l*Ml)*norm(i, 2)), 0.)
+        n = norm(i, 2)
+        if n == 0 or n == np.Inf:
+            i[:] = 0
+        else:
+            i[:] = np.sign(i)*np.maximum(
+                np.abs(i)-(l*sum_Ml)/((1.+l*Ml)*n), 0.)
     return u
 
 def compute_M(u, lambda_, n_samples):
@@ -306,16 +314,11 @@ def least_square_step(y, K, Z):
 def _load_mu(K):
     """ Loads mu and computes it if not already saved
     """
-    print "# Loading mu ..."
     try:
         mu = np.load('./.%s.npy' % sha1(K).hexdigest())
-        print "   Trying to load mu ..."
     except:
-        print "  Computing mu ..."
         mu = 1/norm(np.dot(K, K.transpose()), 2)
-	print "  Saving and returning mu ..."
         np.save('./.%s.npy' % sha1(K).hexdigest(), mu)
-    print "   ... Done."
     return mu
     
 class Fista(BaseEstimator):
@@ -389,8 +392,8 @@ class Fista(BaseEstimator):
         n_kernels = n_features/n_samples # We assume each kernel is a square matrix
 
         B_0 = B_1 = np.zeros(n_features, dtype=np.float) # coefficients to compute
-        tol = 10**(-9)
-        Z = B_1 # a linear combination of the coefficients of the 2 last iterations
+        tol = 10**(-6)
+        Z = np.copy(B_1) # a linear combination of the coefficients of the 2 last iterations
         tau_1 = 1
 
         if mu==None:
@@ -427,8 +430,7 @@ class Fista(BaseEstimator):
 
             # basic test of convergence
             if error <= tol and i>5:
-                if verbose==1:
-                    print "convergence at iteration : %d" % i
+                print "convergence at iteration : %d" % i
                 break
 
         if verbose==1:
@@ -497,7 +499,7 @@ class Fista(BaseEstimator):
         if file_name is None:
             yy, mm, dd = time.localtime()[0:3]
             file_name = "Class_Fista__%s_%s_%s__lambda_%f__loss_%s__penalty_%s.npy" % (yy, mm, dd, self.lambda_, self.loss, self.penalty)
-        score = self.prediction_score(K, y)
+        score = self.score(K, y)
         dic = Bunch()
         dic['penalty'] = self.penalty
         dic['loss'] = self.loss

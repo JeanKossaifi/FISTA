@@ -394,4 +394,44 @@ def fetch_data(data_dir=None):
     return data
 
 
+def fetch_200_data():
+    dataset_dir = _get_dataset_dir("", data_dir=None)
+    name = "data_200__5_7.npy"
+    try:
+        new_data = np.load(os.path.join(dataset_dir, name+".npy"))
+    except:
+        data = fetch_data()
+        data_names = [#'kernel_matrix_pfamdom_cn_3588',
+                  'kernel_matrix_tap_n_3588',
+                  'kernel_matrix_mpi_n_3588',
+                  'kernel_matrix_mgi_n_3588',
+                  #'kernel_matrix_exp_diff_n_3588',
+                  'kernel_matrix_exp_gauss_n_3588',
+                  'kernel_matrix_pfamdom_exp_cn_3588',
+                  'kernel_matrix_sw_cn_3588']
 
+        new_data = Bunch()
+        length = len(data.y[:, 5])
+
+        # We now compute the mask as an array of indices
+        indices5 = set(np.arange(length)[data.y[:, 5]==1])
+        indices7 = set(np.arange(length)[data.y[:, 7]==1])
+        common = set.intersection(indices5, indices7)
+        indices5 = set.difference(indices5, common)
+        indices7 = list(set.difference(indices7, common))[:100]
+        indices = list(indices5)[:100]
+        indices.extend(indices7)
+        indices = np.array(indices)
+
+        for i in data_names:
+            kernel = data.kernels[i]
+            K = kernel[indices, :][:, indices]
+            new_data[i] = K
+
+        # y is the label of class 5 : 1 if the element belongs to class 5
+        # -1 if it doesn't (ie it belongs to class 7)
+        new_data['y'] = data.y[indices, 5]
+
+        np.save(os.path.join(dataset_dir, name), new_data)
+
+    return new_data
