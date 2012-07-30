@@ -505,6 +505,17 @@ class Fista(BaseEstimator):
         else:
             print "Score not yet implemented for regression\n"
 
+    def info(self, K, y):
+        result = Bunch()
+        (n_samples, n_features) = K.shape
+        n_kernels = n_features/n_samples # We assume each kernel is a square matrix
+        result['score'] = self.score(K, y)
+        result['norms'] = self.by_kernel_norm(self.coefs_, n_samples, n_kernels, self.norm_)
+        result['nulled_coefs'] = len(self.coefs_[self.coefs_==0])
+        result['nulled_kernels'] = len(self.coefs_) / result.nulled_coefs
+        
+        return result
+
 
     def save(self, K, y, file_name=None):
         """ Saves the information contained in the class in the file_name file
