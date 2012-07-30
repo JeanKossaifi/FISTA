@@ -8,7 +8,7 @@ import numpy as np
 from numpy.testing import assert_array_equal
 from nose.tools import assert_true
 
-from ..fista import prox_l11, prox_l22, prox_l21, prox_l12, compute_M, norm_l12, norm_l21
+from ..fista import prox_l11, prox_l22, prox_l21, prox_l12, compute_M, norm_l12, norm_l21, by_kernel_norm
 from ..fista import Fista
 
 def test_prox_l11():
@@ -100,3 +100,7 @@ def test_Fista():
     fista.penalty='l22'
     fista.fit(X, y, verbose=1)
     assert fista.score(X, y) == 100
+
+def test_by_kernel_norm():
+    u = np.array([1, 1, 1, 1, 0, 0, 0, 0])
+    assert by_kernel_norm(u, 4, 2, 'l22') == [2, 0]

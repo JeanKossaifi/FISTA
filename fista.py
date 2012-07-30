@@ -15,6 +15,29 @@ from sklearn.datasets.base import Bunch
 from hashlib import sha1
 import time
 
+def by_kernel_norm(coefs, n_samples, n_kernels, norm_):
+    """ Computes the norm of coefs for each kernel
+
+    Returns
+    -------
+    A list of the norms of the sub vectors associated to each kernel
+    """
+    norms = list()
+    if norm_=='l11' or norm_=='l22':
+        for i in coefs.reshape(n_kernels, n_samples):
+            if norm_=='l11':
+                current_norm = norm(i, 1)
+            if norm_=='l22':
+                current_norm = norm(i, 2)
+            norms.append(current_norm)
+    else:
+        if norm_=='l12':
+            current_norm = norm_l12(coefs, n_samples, n_kernels)
+        if norm_=='l21':
+            current_norm = norm_l21(coefs, n_samples, n_kernels)
+        norms = [current_norm]
+    return norms
+
 def norm_l12(u, n_samples, n_kernels):
     """ Returns the l12 norm of the vector u
 
