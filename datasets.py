@@ -400,6 +400,7 @@ def fetch_200_data():
     try:
         new_data = np.load(os.path.join(dataset_dir, name+".npy"))
     except:
+        print "recomputing data..."
         data = fetch_data()
         data_names = [#'kernel_matrix_pfamdom_cn_3588',
                   'kernel_matrix_tap_n_3588',
@@ -431,6 +432,15 @@ def fetch_200_data():
         # y is the label of class 5 : 1 if the element belongs to class 5
         # -1 if it doesn't (ie it belongs to class 7)
         new_data['y'] = data.y[indices, 5]
+
+
+        for i, e in enumerate(data_names):
+            if i==0:
+                K = new_data[e]
+            else:
+                K = np.concatenate((K, new_data[e]), axis=1)
+
+        new_data['K'] = K
 
         np.save(os.path.join(dataset_dir, name), new_data)
 
