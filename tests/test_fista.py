@@ -68,9 +68,10 @@ def test_norm_l21():
     assert norm_l21(u, n_samples, n_kernels) == 4
 
 def test_Fista():
+    generator = np.random.RandomState(seed=0)
     fista = Fista(lambda_=0.5, loss='hinge', penalty='l11', n_iter=1000)
-    X = np.random.normal(size=(10, 40))
-    y = np.sign(np.random.normal(size=10))
+    X = generator.normal(size=(10, 40))
+    y = np.sign(generator.normal(size=10))
     # Test for norm l11
     fista.fit(X, y)
     assert fista.score(X, y) == 100
@@ -78,18 +79,23 @@ def test_Fista():
     assert len(fista.coefs_[fista.coefs_==0]) > 1
 
     # Test for norm l12
-    fista.penalty='l12'
+    fista.penalty='l21'
     fista.fit(X, y)
     assert fista.score(X, y) == 100
     # Checking sparcity
     # The norm should nul entire kernels
     assert len(fista.coefs_[fista.coefs_==0]) % 10 == 0
-    # At least one kernel should be nulled, but not all of them
-    assert len(fista.coefs_[fista.coefs_==0]) / 10 in (1, 2, 3)
     
-    fista.penalty='l21'
+    fista.penalty='l12'
     fista.fit(X, y)
     assert fista.score(X, y) == 100
+    # Checking sparcity
+    coefs_ = fista.coefs_.reshape(4, 10)
+    # For every kernel, some samples should be nulled
+    # But not all of them
+    for i in coefs_:
+        assert len(i[i==0]) > 0
+        assert len(i[i!=0]) > 0
 
     fista.penalty='l22'
     fista.fit(X, y, verbose=1)
