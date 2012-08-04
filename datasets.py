@@ -422,8 +422,6 @@ def unique_indices(y, column1, column2, n_indices):
     n_samples = len(y[:, 0])
     # np.delete(y, column1, 1)==1).any(axis)1) returns one if one element or more on the current line is equal to one
     # Which we don't want
-    y[y==-1] = False
-    y[y==1] = True
     mask1 = (y[:, column1] == 1) & np.logical_not((np.delete(y, [column1], 1)==1).any(axis=1))
     mask2 = (y[:, column2] == 1) & np.logical_not((np.delete(y, [column2], 1)==1).any(axis=1))
     # We want a mask of indices, not of Booleans
@@ -438,9 +436,9 @@ def fetch_Yeast_data(class1, class2):
     class1 = class1 - 1
     class2 = class2 - 1
     dataset_dir = _get_dataset_dir("", data_dir=None)
-    name = "Yeast_data__%i_%i" % (class1, class2)
+    name = "Yeast_data__%i_%i.npy" % (class1, class2)
     try:
-        new_data = np.load(os.path.join(dataset_dir, name))
+        new_data = np.load(os.path.join(dataset_dir, name)).tolist()
     except:
         print "recomputing data..."
         data = fetch_data()
