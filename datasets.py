@@ -312,6 +312,8 @@ def fetch_data(data_dir=None):
     data : Bunch
         Dictionary-like object, the interest attributes are :
         kernel* : the kernel corresponding to its name
+        y : the corresponding labels
+        K : the concatenation of all the labels
 
     Notes
     -----
@@ -393,12 +395,52 @@ def fetch_data(data_dir=None):
 
     return data
 
+def unique_indices(y, column1, column2, n_indices):
+    """
+    Returns a list of indices of the n_indices first elements belonging ONLY to column1 or column2
 
-def fetch_200_data():
+    Parameters
+    ----------
+    y : 2D-ndarray
+        an array of labels, ie an array of integers, 1 if the element belong to the class, -1 if it doesn't
+
+    column1 : int
+        the indice of the first class we want the indices from
+        WARNING : indexing starts at ZERO
+
+    column2 : int
+        the indice of the second class we want the indices from
+        WARNING : indexing starts at ZERO
+
+    n_indices : the number of elements we want
+
+    Returns
+    -------
+    indices : ndarray
+              a list of indices corresponding to the n_indices first elements belonging only to column1 or only to column2
+    """
+    n_samples = len(y[:, 0])
+    # np.delete(y, column1, 1)==1).any(axis)1) returns one if one element or more on the current line is equal to one
+    # Which we don't want
+    y[y==-1] = False
+    y[y==1] = True
+    mask1 = (y[:, column1] == 1) & np.logical_not((np.delete(y, [column1], 1)==1).any(axis=1))
+    mask2 = (y[:, column2] == 1) & np.logical_not((np.delete(y, [column2], 1)==1).any(axis=1))
+    # We want a mask of indices, not of Booleans
+    mask1 = np.arange(n_samples)[mask1==True]
+    mask2 = np.arange(n_samples)[mask2==True]
+    indices = np.concatenate((mask1[:n_indices], mask2[:n_indices]))
+    return indices
+
+
+def fetch_Yeast_data(class1, class2):
+    # Indexing starts at 0
+    class1 = class1 - 1
+    class2 = class2 - 1
     dataset_dir = _get_dataset_dir("", data_dir=None)
-    name = "data_200__5_7.npy"
+    name = "Yeast_data__%i_%i" % (class1, class2)
     try:
-        new_data = np.load(os.path.join(dataset_dir, name+".npy"))
+        new_data = np.load(os.path.join(dataset_dir, name))
     except:
         print "recomputing data..."
         data = fetch_data()
@@ -412,27 +454,16 @@ def fetch_200_data():
                   'kernel_matrix_sw_cn_3588']
 
         new_data = Bunch()
-        length = len(data.y[:, 5])
-
         # We now compute the mask as an array of indices
-        indices5 = set(np.arange(length)[data.y[:, 5]==1])
-        indices7 = set(np.arange(length)[data.y[:, 7]==1])
-        common = set.intersection(indices5, indices7)
-        indices5 = set.difference(indices5, common)
-        indices7 = list(set.difference(indices7, common))[:100]
-        indices = list(indices5)[:100]
-        indices.extend(indices7)
+        indices = unique_indices(data.y, class1, class2, 100)
         indices = np.array(indices)
 
         for i in data_names:
-            kernel = data.kernels[i]
-            K = kernel[indices, :][:, indices]
-            new_data[i] = K
+            new_data[i] = data.kernels[i][indices, :][:, indices]
 
         # y is the label of class 5 : 1 if the element belongs to class 5
         # -1 if it doesn't (ie it belongs to class 7)
-        new_data['y'] = data.y[indices, 5]
-
+        new_data['y'] = data.y[indices, class1]
 
         for i, e in enumerate(data_names):
             if i==0:
@@ -441,7 +472,18 @@ def fetch_200_data():
                 K = np.concatenate((K, new_data[e]), axis=1)
 
         new_data['K'] = K
-
         np.save(os.path.join(dataset_dir, name), new_data)
 
     return new_data
+
+
+def fetch_Yeast_5_7():
+    return fetch_Yeast_data(5, 7)
+
+
+def fetch_Yeast_5_12():
+    return fetch_Yeast_data(5, 12)
+
+
+def fetch_Yeast_7_12():
+    return fetch_Yeast_data(7, 12)
