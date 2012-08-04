@@ -23,19 +23,16 @@ def by_kernel_norm(coefs, n_samples, n_kernels, norm_):
     A list of the norms of the sub vectors associated to each kernel
     """
     norms = list()
-    if norm_=='l11' or norm_=='l22':
-        for i in coefs.reshape(n_kernels, n_samples):
-            if norm_=='l11':
-                current_norm = norm(i, 1)
-            if norm_=='l22':
-                current_norm = norm(i, 2)
-            norms.append(current_norm)
-    else:
+    for i in coefs.reshape(n_kernels, n_samples):
+        if norm_=='l11':
+            current_norm = norm(i, 1)
+        if norm_=='l22':
+            current_norm = norm(i, 2)
         if norm_=='l12':
-            current_norm = norm_l12(coefs, n_samples, n_kernels)
+            current_norm = norm_l12(i, n_samples, 1)
         if norm_=='l21':
-            current_norm = norm_l21(coefs, n_samples, n_kernels)
-        norms = [current_norm]
+            current_norm = norm_l21(i, n_samples, 1)
+        norms.append(current_norm)
     return norms
 
 def norm_l12(u, n_samples, n_kernels):
@@ -505,14 +502,28 @@ class Fista(BaseEstimator):
         else:
             print "Score not yet implemented for regression\n"
 
+
     def info(self, K, y):
+        """
+        Returns
+        -------
+        A dict of information
+        """
         result = Bunch()
         (n_samples, n_features) = K.shape
         n_kernels = n_features/n_samples # We assume each kernel is a square matrix
+        nulled_kernels = 0
+        nulled_coefs_per_kernel = list()
+        for i in self.coefs_.reshape(n_kernels, n_samples):
+            if len(i[i!=0]) == 0:
+                nulled_kernels = nulled_kernels + 1
+            nulled_coefs_per_kernel.append(len(i[i==0]))
+
         result['score'] = self.score(K, y)
-        result['norms'] = self.by_kernel_norm(self.coefs_, n_samples, n_kernels, self.norm_)
+        result['norms'] = by_kernel_norm(self.coefs_, n_samples, n_kernels, self.penalty)
         result['nulled_coefs'] = len(self.coefs_[self.coefs_==0])
-        result['nulled_kernels'] = len(self.coefs_) / result.nulled_coefs
+        result['nulled_kernels'] = nulled_kernels
+        result['nulled_coefs_per_kernel'] = nulled_coefs_per_kernel
         
         return result
 
