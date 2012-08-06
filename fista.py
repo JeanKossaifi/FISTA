@@ -38,7 +38,7 @@ def mixed_norm(coefs, p, q=None, n_samples=None, n_kernels=None):
     if q is None or p==q:
         return norm(coefs, p)
     else:
-        return (sum([norm(i, p)**q for i in np.reshape(coefs, (n_kernels, n_samples))]))**q
+        return (sum([norm(i, p)**q for i in coefs.reshape(n_kernels, n_samples)]))**(1/q)
 
 
 def dual_mixed_norm(coefs, n_samples, n_kernels, norm_):
@@ -431,7 +431,7 @@ class Fista(BaseEstimator):
             # Primal objective function
             penalisation = self.lambda_*mixed_norm(coefs_next,
                     self.p, self.q, n_samples, n_kernels)
-            loss = np.sum(np.maximum(dual_var), 0)**2
+            loss = np.sum(np.maximum(dual_var, 0)**2)
             objective_function = penalisation + loss
             # Dual objective function
             dual_penalisation = dual_mixed_norm(np.dot(K.T,dual_var),

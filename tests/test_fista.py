@@ -6,9 +6,9 @@ __license__ = 'BSD'
 import numpy as np
 
 from numpy.testing import assert_array_equal
-from nose.tools import assert_true
+from nose.tools import assert_true, assert_almost_equal
 
-from ..fista import prox_l11, prox_l22, prox_l21, prox_l12, compute_M, norm_l12, norm_l21, by_kernel_norm
+from ..fista import prox_l11, prox_l22, prox_l21, prox_l12, compute_M, mixed_norm, by_kernel_norm
 from ..fista import Fista
 
 def test_prox_l11():
@@ -57,19 +57,26 @@ def test_compute_M():
     assert_true(Ml==2)
     assert_true(sum_Ml==5)
 
-def test_norm_l12():
-    u = np.ones(8)
-    n_kernels, n_samples = 4, 2
-    assert norm_l12(u, n_samples, n_kernels) == 4
-
-def test_norm_l21():
+def test_mixed_norm():
     u = np.ones(8)
     n_kernels, n_samples = 2, 4
-    assert norm_l21(u, n_samples, n_kernels) == 4
+    # Test of l_12 norm
+    assert_almost_equal(mixed_norm(u, 1, 2, n_samples, n_kernels), 5.65685424)
+    # Test of l_12 norm
+    assert mixed_norm(u, 2, 1, n_samples, n_kernels) == 4
+    # Test of l_22 norm
+    assert_almost_equal(mixed_norm(u, 2, 2, n_samples, n_kernels),
+            2.828427124746)
+    # Test of l_11 norm
+    assert mixed_norm(u, 1, 1, n_samples, n_kernels) == 8
+
+def test_by_kernel_norm():
+    u = np.array([1, 1, 1, 1, 0, 0, 0, 0])
+    assert by_kernel_norm(u, 2, 2, 4, 2) == [2, 0]
 
 def test_Fista():
     generator = np.random.RandomState(seed=0)
-    fista = Fista(lambda_=0.5, loss='hinge', penalty='l11', n_iter=1000)
+    fista = Fista(lambda_=0.5, loss='squared-hinge', penalty='l11', n_iter=1000)
     X = generator.normal(size=(10, 40))
     y = np.sign(generator.normal(size=10))
     # Test for norm l11
@@ -100,7 +107,3 @@ def test_Fista():
     fista.penalty='l22'
     fista.fit(X, y, verbose=1)
     assert fista.score(X, y) == 100
-
-def test_by_kernel_norm():
-    u = np.array([1, 1, 1, 1, 0, 0, 0, 0])
-    assert by_kernel_norm(u, 4, 2, 'l22') == [2, 0]
