@@ -22,16 +22,16 @@ K3 = np.dot(K3[:, np.newaxis], K3[:, np.newaxis].transpose())
 K4 = np.dot(K4[:, np.newaxis], K4[:, np.newaxis].transpose())
 K = np.concatenate((K1, K2, K3, K4), axis=1)
 
-fista = Fista(loss='hinge', penalty='l11', lambda_=0.1, n_iter=50)
+fista = Fista(loss='squared-hinge', penalty='l11', lambda_=0.1, n_iter=50)
 fista.fit(K, y)
-print "pourcentage de bonne prediction avec l11: %d " % fista.prediction_score(K, y)
+print "pourcentage de bonne prediction avec l11: %d " % fista.score(K, y)
 fista.penalty='l12'
 fista.fit(K, y)
-print "pourcentage de bonne prediction avec l12: %d " % fista.prediction_score(K, y)
+print "pourcentage de bonne prediction avec l12: %d " % fista.score(K, y)
 fista.penalty='l21'
 fista.fit(K, y)
-print "pourcentage de bonne prediction avec l21: %d " % fista.prediction_score(K, y)
+print "pourcentage de bonne prediction avec l21: %d " % fista.score(K, y)
 fista.penalty='l22'
 fista.fit(K, y)
-print "pourcentage de bonne prediction avec l22: %d " % fista.prediction_score(K, y)
+print "pourcentage de bonne prediction avec l22: %d " % fista.score(K, y)
 
