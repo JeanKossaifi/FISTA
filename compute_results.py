@@ -15,7 +15,7 @@ def _sub_info(estimator, K_train, y_train, K_test, y_test):
     return estimator.fit(K_train, y_train, verbose=1).info( K_test, y_test)
 
 
-def _compute_info(estimator, K, y, lambda_, n_folds, folds):
+def _compute_info(estimator, K, y, lambda_, folds):
     estimator.lambda_ = lambda_
     # Cross_validation loop
     infos = Parallel(n_jobs=1, verbose=3)(
@@ -35,7 +35,7 @@ def cross_val(penalty, lambda_, n_folds, K, y):
     folds = _KFold(y, n_folds, n_samples, n_kernels)
     # Computing score mean score for each lambda
     print "** Computing scores ..."
-    infos, mean, std = _compute_info(estimator, K, y, lambda_, n_folds, folds)
+    infos, mean, std = _compute_info(estimator, K, y, lambda_, folds)
     result = Bunch()
     result['infos'] = infos
     result['penalty'] = penalty

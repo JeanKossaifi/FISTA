@@ -62,7 +62,7 @@ def by_kernel_norm(coefs, p, q, n_samples, n_kernels):
     -------
     A list of the norms of the sub vectors associated to each kernel
     """
-    return [mixed_norm(i, p, q, n_samples, n_kernels)
+    return [mixed_norm(i, p, q, n_samples, 1)
         for i in coefs.reshape(n_kernels, n_samples)]
 
 
