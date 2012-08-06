@@ -452,7 +452,7 @@ class Fista(BaseEstimator):
             if verbose == 1:
                 self.iteration_dual_gap.append(gap)
 
-            if gap<=tol:
+            if gap<=tol and i>10:
                 print "convergence at iteration : %d" %i
                 break
 
