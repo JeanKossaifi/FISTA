@@ -13,90 +13,58 @@ from math import sqrt
 from sklearn.base import BaseEstimator
 from sklearn.datasets.base import Bunch
 from hashlib import sha1
-import time
 
-def by_kernel_norm(coefs, n_samples, n_kernels, norm_):
-    """ Computes the norm of coefs for each kernel
+
+def mixed_norm(coefs, p, q=None, n_samples=None, n_kernels=None):
+    """ Computes the (p, q) mixed norm of the vector coefs
+
+    Parameters
+    ----------
+    coefs : ndarray
+        a vector indexed by (l, m)
+        with l in range(0, n_kernels)
+            and m in range(0, n_samples)
+
+    p : int
+        
+    q : int
+
+    n_samples : int, optional
+        default is None
+
+    n_kernels : int, optional
+        default is None
+    """
+    if q is None or p==q:
+        return norm(coefs, p)
+    else:
+        return (sum([norm(i, p)**q for i in np.reshape(coefs, (n_kernels, n_samples))]))**q
+
+
+def dual_mixed_norm(coefs, n_samples, n_kernels, norm_):
+    """ Returns a function corresponding to the dual mixt norm
+    """
+    if norm=='l11':
+        res = norm(coefs, np.inf)
+    elif norm=='l12':
+        res = mixed_norm(coefs, np.inf, 2, n_samples, n_kernels)
+    elif norm=='l21':
+        res = mixed_norm(coefs, 2, np.inf, n_samples, n_kernels)
+    else:
+        res = norm(coefs, 2)
+    return res
+
+
+def by_kernel_norm(coefs, p, q, n_samples, n_kernels):
+    """ Computes the (p, q) norm of coefs for each kernel
 
     Returns
     -------
     A list of the norms of the sub vectors associated to each kernel
     """
-    norms = list()
-    for i in coefs.reshape(n_kernels, n_samples):
-        if norm_=='l11':
-            current_norm = norm(i, 1)
-        if norm_=='l22':
-            current_norm = norm(i, 2)
-        if norm_=='l12':
-            current_norm = norm_l12(i, n_samples, 1)
-        if norm_=='l21':
-            current_norm = norm_l21(i, n_samples, 1)
-        norms.append(current_norm)
-    return norms
+    return [mixed_norm(i, p, q, n_samples, n_kernels)
+        for i in coefs.reshape(n_kernels, n_samples)]
 
-def norm_l12(u, n_samples, n_kernels):
-    """ Returns the l12 norm of the vector u
-
-
-    Parameters
-    ----------
-    u : ndarray
-        the vector of wich we want to compute the norm l_12
-
-    n_samples : int
-        number of samples
-
-    n_kernels : int
-        number of kernels
-
-    Returns
-    -------
-
-    float : norm l_12 of u
-
-    Notes
-    -----
-
-    This function computes the following norm :
-
-    .. math:: 
-
-
-       \|\alpha\|_{pq;1}=\left[\sum_{i=1}^n\left[\sum_{t=1}^{\tau}|\alpha_{it}|^p\right]^{q/p}\right]^{1/q}
-
-    """
-    return np.sum(np.sum(np.reshape(np.abs(u), (n_kernels, n_samples)), axis=1)**2)**0.5
-
-def norm_l21(u, n_samples, n_kernels):
-    """ Returns the l21 norm of the vector u
-
-    Parameters
-    ----------
-    u : ndarray
-        the vector of wich we want to compute the norm l_12
-
-    n_samples : int
-        number of samples
-
-    n_kernels : int
-        number of kernels
-
-    Returns
-    -------
-    float : norm l_21 of u
-
-    Notes
-    -----
-
-    This function computes the following norm :
-
-    .. math::
-
-        \|\bfalpha\|_{pq;1}=\left[\sum_{i=1}^n\left[\sum_{t=1}^{\tau}|\alpha_{it}|^p\right]^{q/p}\right]^{1/q}
-
-    """
-    return np.sum(np.sum(np.reshape(np.abs(u)**2, (n_kernels, n_samples)), axis=1)**0.5)
 
 def prox_l11(u, lambda_):
     """ Proximity operator for l(1, 1, 2) norm
@@ -331,8 +299,9 @@ def least_square_step(y, K, Z):
     """
     return np.dot(K.transpose(), y - np.dot(K,Z))
 
-def _load_mu(K):
-    """ Loads mu and computes it if not already saved
+
+def _load_Lipschitz_constant(K):
+    """ Loads the Lipschitz constant and computes it if not already saved
     """
     try:
         mu = np.load('./.%s.npy' % sha1(K).hexdigest())
@@ -341,34 +310,47 @@ def _load_mu(K):
         np.save('./.%s.npy' % sha1(K).hexdigest(), mu)
     return mu
     
+
 class Fista(BaseEstimator):
     """
     Fast iterative shrinkage/thresholding Algorithm
     """
     
-    def __init__(self, lambda_=0.5, loss='hinge', penalty='l11', n_iter=500):
+    def __init__(self, lambda_=0.5, loss='squared-hinge', penalty='l11', n_iter=1000, recompute_Lipschitz_constant=False):
         """
         Parameters
         ----------
 
-        loss : string, optionnal
+        lambda_ : int, optionnal
+            regularisation parameter
+            default is 0.5
+
+        loss : {'squared-hinge', 'least-square'}, optionnal
             defautl : 'hinge'
-            possible values : 'hinge' or 'least-square'
+            the loss function to use
             
         penalty : {'l11', 'l22', 'l12', 'l21'}, optionnal
             norm to use as penalty
 
         n_iter : int, optionnal
             number of iterations
-            default = 500
+            default = 1000
+
+        recompute_Lipschitz_constant : bool, optionnal
+            if True, the Lipschitz constant is recomputed everytime
+            if False, it is stored based on it's sha1 hash
+            default : False
 
         """
         self.n_iter = n_iter
         self.lambda_ = lambda_
         self.loss = loss
         self.penalty = penalty
+        self.p = int(penalty[1])
+        self.q = int(penalty[2])
+        self.recompute_Lipschitz_constant = recompute_Lipschitz_constant
 
-    def fit(self, K, y, mu=None, verbose=0, **params):
+    def fit(self, K, y, Lipschitz_constant=None,  verbose=0, **params):
         """ Fits the estimator
 
         We want to solve a problem of the form y = KB + b
@@ -386,9 +368,9 @@ class Fista(BaseEstimator):
             y is of size p
                 where K.shape : (n, p)
 
-        mu : float, optionnal
-             allow the user to pre-compute mu
-             (the computation of mu can be very slow, so that parameter is very
+        Lipschitz_constant : float, optionnal
+             allow the user to pre-compute the Lipschitz constant
+             (its computation can be very slow, so that parameter is very
              usefull if you were to use several times the algorithm on the same data)
 
         verbose : {0, 1}, optionnal
@@ -399,68 +381,87 @@ class Fista(BaseEstimator):
         -------
         self
         """
-        
-        step = hinge_step
-        if self.loss=='hinge':
+        next_step = hinge_step
+        if self.loss=='squared-hinge':
             K = y[:, np.newaxis] * K
-            # Equivalent to K = np.dot(np.diag(y), X) but very faster
-
+            # Equivalent to K = np.dot(np.diag(y), X) but faster
         elif self.loss=='least-square':
-            self.step = least_square_step
+            next_step = least_square_step
 
         (n_samples, n_features) = K.shape
         n_kernels = n_features/n_samples # We assume each kernel is a square matrix
+        self.n_samples, self.n_kernels = n_samples, n_kernels
 
-        B_0 = B_1 = np.zeros(n_features, dtype=np.float) # coefficients to compute
-        tol = 10**(-6)
-        Z = np.copy(B_1) # a linear combination of the coefficients of the 2 last iterations
+        if Lipschitz_constant==None:
+            Lipschitz_constant = _load_Lipschitz_constant(K)
+
+        tol = 10**(-12)
+        coefs_current = np.zeros(n_features, dtype=np.float) # coefficients to compute
+        coefs_next = np.zeros(n_features, dtype=np.float)
+        Z = np.copy(coefs_next) # a linear combination of the coefficients of the 2 last iterations
         tau_1 = 1
 
-        if mu==None:
-            mu = _load_mu(K)
-
         if self.penalty=='l11':
-            prox = lambda(u):prox_l11(u, self.lambda_*mu)
+            prox = lambda(u):prox_l11(u, self.lambda_*Lipschitz_constant)
         elif self.penalty=='l22':
-            prox = lambda(u):prox_l22(u, self.lambda_*mu)
+            prox = lambda(u):prox_l22(u, self.lambda_*Lipschitz_constant)
         elif self.penalty=='l21':
-            prox = lambda(u):prox_l21(u, self.lambda_*mu, n_samples, n_kernels)
+            prox = lambda(u):prox_l21(u, self.lambda_*Lipschitz_constant, n_samples, n_kernels)
         elif self.penalty=='l12':
-            prox = lambda(u):prox_l12(u, self.lambda_*mu, n_samples, n_kernels)
+            prox = lambda(u):prox_l12(u, self.lambda_*Lipschitz_constant, n_samples, n_kernels)
 
         if verbose==1:
-            self.iter_coefs = list()
-            self.iter_errors = list()
+            self.iteration_dual_gap = list()
 
         for i in range(self.n_iter):
-            B_0 = B_1 # B_(k-1) = B_(k)
-            tau_0 = tau_1 #tau_(k+1) = tau_k
-            B_1 = prox(Z + mu*step(y, K, Z))
-            tau_1 = (1 + sqrt(1 + 4*tau_0**2))/2
-            Z = B_1 + (tau_0 - 1)/tau_1*(B_1 - B_0)
+            coefs_current = coefs_next # B_(k-1) = B_(k)
+            coefs_next = prox(Z + Lipschitz_constant*next_step(y, K, Z))
             
-            # Compute the error : use max in case norm(B_1)==0
-            error = norm(B_1 - B_0, 2)/max(norm(B_1,2), 0.000001)
-            # for test purpose : verbosity
-            if verbose==1:
-                self.iter_coefs.append(norm(B_1, 2))
-                self.iter_errors.append(error)
+            tau_0 = tau_1 #tau_(k+1) = tau_k
+            tau_1 = (1 + sqrt(1 + 4*tau_0**2))/2
+
+            Z = coefs_next + (tau_0 - 1)/tau_1*(coefs_next - coefs_current)
+            
+            if verbose:
                 sys.stderr.write("Iteration : %d\r" % i )
                 # print "iteration %d" % i
 
-            # basic test of convergence
-            if error <= tol and i>5:
-                print "convergence at iteration : %d" % i
+            # Dual problem
+            dual_var = 1 - np.dot(K, coefs_next)
+            # Primal objective function
+            penalisation = self.lambda_*mixed_norm(coefs_next,
+                    self.p, self.q, n_samples, n_kernels)
+            loss = np.sum(np.maximum(dual_var), 0)**2
+            objective_function = penalisation + loss
+            # Dual objective function
+            dual_penalisation = dual_mixed_norm(np.dot(K.T,dual_var),
+                    n_samples, n_kernels, self.penalty)
+            if self.q==1:
+                # Fenchel conjugate of a mixed norm
+                if dual_penalisation<=1:
+                    dual_penalisation = 1
+                else:
+                    dual_penalisation = 0
+            else:
+                # Fenchel conjugate of a squared mixed norm
+                dual_penalisation = 0.5*dual_penalisation**2
+            dual_objective_function = -0.5*np.sum(dual_var)**2 +\
+                    np.dot(dual_var.T, y) + dual_penalisation
+            gap = objective_function - dual_objective_function
+
+            if verbose == 1:
+                self.iteration_dual_gap.append(gap)
+
+            if gap<=tol:
+                print "convergence at iteration : %d" %i
                 break
 
-        if verbose==1:
-            #print "Norm of the coefficients at each iteration : %s"\
-            #        % self.iter_coefs
-            pass
-        else:
-            self.iter_coefs = None
-        
-        self.coefs_ = B_1
+        print "dual gap : %f" % gap
+        self.coefs_ = coefs_next
+        self.gap = gap
+        self.objective_function = objective_function
+        self.dual_objective_function = dual_objective_function
+
         return self
 
     def predict(self, K):
@@ -475,12 +476,12 @@ class Fista(BaseEstimator):
         -------
         ndarray : the prediction associated to K
         """
-        if self.loss=='hinge':
+        if self.loss=='squared-hinge':
             return np.sign(np.dot(K, self.coefs_))
         else:
             return np.dot(K, self.coefs_)
 
-    def score(self, K, y, file_name=None):
+    def score(self, K, y):
         """ Returns the score prediction for the given data
 
         Parameters
@@ -495,65 +496,37 @@ class Fista(BaseEstimator):
         -------
         The percentage of good classification for K
         """
-        if self.loss=='hinge':
-            if file_name is not None:
-                self.save(K, y, file_name)
+        if self.loss=='squared-hinge':
             return np.sum(np.equal(self.predict(K), y))*100./len(y)
         else:
             print "Score not yet implemented for regression\n"
-
+            return None
 
     def info(self, K, y):
-        """
+        """ For test purpose
+
         Returns
         -------
-        A dict of information
+        A dict of informations
         """
         result = Bunch()
-        (n_samples, n_features) = K.shape
-        n_kernels = n_features/n_samples # We assume each kernel is a square matrix
+        n_samples, n_kernels = self.n_samples, self.n_kernels
         nulled_kernels = 0
         nulled_coefs_per_kernel = list()
+
         for i in self.coefs_.reshape(n_kernels, n_samples):
             if len(i[i!=0]) == 0:
                 nulled_kernels = nulled_kernels + 1
             nulled_coefs_per_kernel.append(len(i[i==0]))
 
         result['score'] = self.score(K, y)
-        result['norms'] = by_kernel_norm(self.coefs_, n_samples, n_kernels, self.penalty)
+        result['norms'] = by_kernel_norm(self.coefs_, self.p, self.q,
+                n_samples, n_kernels)
         result['nulled_coefs'] = len(self.coefs_[self.coefs_==0])
         result['nulled_kernels'] = nulled_kernels
         result['nulled_coefs_per_kernel'] = nulled_coefs_per_kernel
+        result['objective_function'] = self.objective_function
+        result['dual_objective_function'] = self.dual_objective_function
+        result['gap'] = self.gap
         
         return result
-
-
-    def save(self, K, y, file_name=None):
-        """ Saves the information contained in the class in the file_name file
-        
-        Parameters
-        ----------
-        K : ndarray
-
-        y : ndarray
-            labels associated to K
-
-        file_name : string, optional
-            name of the file in witch save the data
-        """
-        if file_name is None:
-            yy, mm, dd = time.localtime()[0:3]
-            file_name = "Class_Fista__%s_%s_%s__lambda_%f__loss_%s__penalty_%s.npy" % (yy, mm, dd, self.lambda_, self.loss, self.penalty)
-        score = self.score(K, y)
-        dic = Bunch()
-        dic['penalty'] = self.penalty
-        dic['loss'] = self.loss
-        dic['score'] = score
-        dic['n_iter'] = self.n_iter
-        dic['lambda'] = self.lambda_
-        dic['coefs_'] = self.coefs_
-        if self.iter_coefs is not None:
-            dic['iter_coefs'] = self.iter_coefs
-            dic['iter_errors'] = self.iter_errors
-        np.save(file_name, dic)
-
