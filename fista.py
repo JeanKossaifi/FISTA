@@ -429,13 +429,13 @@ class Fista(BaseEstimator):
             # Dual problem
             dual_var = 1 - np.dot(K, coefs_next)
             # Primal objective function
-            penalisation = self.lambda_*mixed_norm(coefs_next,
-                    self.p, self.q, n_samples, n_kernels)
+            penalisation = 0.5*self.lambda_/self.q*(mixed_norm(coefs_next,
+                    self.p, self.q, n_samples, n_kernels)**self.q)
             loss = np.sum(np.maximum(dual_var, 0)**2)
             objective_function = penalisation + loss
             # Dual objective function
-            dual_penalisation = dual_mixed_norm(np.dot(K.T,dual_var),
-                    n_samples, n_kernels, self.penalty)
+            dual_penalisation = self.lambda_*dual_mixed_norm(
+                np.dot(K.T,dual_var), n_samples, n_kernels, self.penalty)
             if self.q==1:
                 # Fenchel conjugate of a mixed norm
                 if dual_penalisation<=1:
@@ -444,9 +444,9 @@ class Fista(BaseEstimator):
                     dual_penalisation = 0
             else:
                 # Fenchel conjugate of a squared mixed norm
-                dual_penalisation = 0.5*dual_penalisation**2
+                dual_penalisation = 0.5*(dual_penalisation**2)
             dual_objective_function = -0.5*np.sum(dual_var)**2 +\
-                    np.dot(dual_var.T, y) + dual_penalisation
+                    np.dot(dual_var.T, y) - dual_penalisation
             gap = objective_function - dual_objective_function
 
             if verbose == 1:
