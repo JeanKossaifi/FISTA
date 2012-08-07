@@ -428,10 +428,11 @@ class Fista(BaseEstimator):
 
             # Dual problem
             dual_var = 1 - np.dot(K, coefs_next)
+            dual_var = np.maximum(dual_var, 0) # Shrink
             # Primal objective function
             penalisation = 0.5*self.lambda_/self.q*(mixed_norm(coefs_next,
                     self.p, self.q, n_samples, n_kernels)**self.q)
-            loss = np.sum(np.maximum(dual_var, 0)**2)
+            loss = np.sum(dual_var**2) # seuiller ici si pas fait avant
             objective_function = penalisation + loss
             # Dual objective function
             dual_penalisation = dual_mixed_norm( # self.lambda_*dual_mixed_norm(...
@@ -445,18 +446,23 @@ class Fista(BaseEstimator):
             else:
                 # Fenchel conjugate of a squared mixed norm
                 dual_penalisation = 0.5*(dual_penalisation**2)
-            dual_objective_function = -0.5*np.sum(dual_var**2) +\
-                    np.sum(dual_var) - dual_penalisation # np.dot(duat_var.T, y)
+            dual_loss = -0.5*np.sum(dual_var**2) + np.sum(dual_var)
+            # np.dot(duat_var.T, y) au lieu du sum(dual_var) ?
+            dual_objective_function = dual_loss - dual_penalisation
             gap = objective_function - dual_objective_function
 
             if verbose == 1:
                 self.iteration_dual_gap.append(gap)
 
-            if gap<=tol and i>10:
+            if abs(gap)<=tol and i>10:
                 print "convergence at iteration : %d" %i
                 break
 
         print "dual gap : %f" % gap
+        print "objective_function : %f" % objective_function
+        print "dual_objective_function : %f" % dual_objective_function
+        print "dual_penalisation : %f" % dual_penalisation
+        print "dual_loss : %f" % dual_loss
         self.coefs_ = coefs_next
         self.gap = gap
         self.objective_function = objective_function
