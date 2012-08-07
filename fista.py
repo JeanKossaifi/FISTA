@@ -395,7 +395,7 @@ class Fista(BaseEstimator):
         if Lipschitz_constant==None:
             Lipschitz_constant = _load_Lipschitz_constant(K)
 
-        tol = 10**(-12)
+        tol = 10**(-6)
         coefs_current = np.zeros(n_features, dtype=np.float) # coefficients to compute
         coefs_next = np.zeros(n_features, dtype=np.float)
         Z = np.copy(coefs_next) # a linear combination of the coefficients of the 2 last iterations
@@ -422,39 +422,41 @@ class Fista(BaseEstimator):
 
             Z = coefs_next + (tau_0 - 1)/tau_1*(coefs_next - coefs_current)
             
-            if verbose:
-                sys.stderr.write("Iteration : %d\r" % i )
-                # print "iteration %d" % i
-
             # Dual problem
             dual_var = 1 - np.dot(K, coefs_next)
             dual_var = np.maximum(dual_var, 0) # Shrink
             # Primal objective function
             penalisation = 0.5*self.lambda_/self.q*(mixed_norm(coefs_next,
                     self.p, self.q, n_samples, n_kernels)**self.q)
-            loss = np.sum(dual_var**2) # seuiller ici si pas fait avant
+            loss = np.sum(dual_var**2)
             objective_function = penalisation + loss
             # Dual objective function
-            dual_penalisation = dual_mixed_norm( # self.lambda_*dual_mixed_norm(...
-                np.dot(K.T,dual_var), n_samples, n_kernels, self.penalty)
-            if self.q==1:
-                # Fenchel conjugate of a mixed norm
-                if dual_penalisation<=1:
-                    dual_penalisation = self.lambda_ # 1 si on a deja multiplie par lambda_
-                else:
+            if self.lambda_ != 0:
+                dual_penalisation = dual_mixed_norm(np.dot(K.T,dual_var)/self.lambda_,
+                        n_samples, n_kernels, self.penalty)
+                if self.q==1:
+                    # Fenchel conjugate of a mixed norm
+                    if dual_penalisation > 1:
+                        dual_var = dual_var / dual_penalisation
                     dual_penalisation = 0
+                else:
+                    # Fenchel conjugate of a squared mixed norm
+                    dual_penalisation = 0.5*self.lambda_*(dual_penalisation**2)
             else:
-                # Fenchel conjugate of a squared mixed norm
-                dual_penalisation = 0.5*(dual_penalisation**2)
+                dual_penalisation = 0
             dual_loss = -0.5*np.sum(dual_var**2) + np.sum(dual_var)
             # np.dot(duat_var.T, y) au lieu du sum(dual_var) ?
             dual_objective_function = dual_loss - dual_penalisation
-            gap = objective_function - dual_objective_function
+            gap = abs(objective_function - dual_objective_function)
 
-            if verbose == 1:
+            if verbose:
+                sys.stderr.write("Iteration : %d\r" % i )
+                # print "iteration %d" % i
                 self.iteration_dual_gap.append(gap)
+                if i%1000 == 0:
+                    print "primal objective : %f, dual objective : %f, dual_gap : %f" % (objective_function, dual_objective_function, gap)
 
-            if abs(gap)<=tol and i>10:
+            if gap<=tol and i>10:
                 print "convergence at iteration : %d" %i
                 break
 
