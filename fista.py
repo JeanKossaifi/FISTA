@@ -434,19 +434,19 @@ class Fista(BaseEstimator):
             loss = np.sum(np.maximum(dual_var, 0)**2)
             objective_function = penalisation + loss
             # Dual objective function
-            dual_penalisation = self.lambda_*dual_mixed_norm(
+            dual_penalisation = dual_mixed_norm( # self.lambda_*dual_mixed_norm(...
                 np.dot(K.T,dual_var), n_samples, n_kernels, self.penalty)
             if self.q==1:
                 # Fenchel conjugate of a mixed norm
                 if dual_penalisation<=1:
-                    dual_penalisation = 1
+                    dual_penalisation = self.lambda_ # 1 si on a deja multiplie par lambda_
                 else:
                     dual_penalisation = 0
             else:
                 # Fenchel conjugate of a squared mixed norm
                 dual_penalisation = 0.5*(dual_penalisation**2)
-            dual_objective_function = -0.5*np.sum(dual_var)**2 +\
-                    np.dot(dual_var.T, y) - dual_penalisation
+            dual_objective_function = -0.5*np.sum(dual_var**2) +\
+                    np.sum(dual_var) - dual_penalisation # np.dot(duat_var.T, y)
             gap = objective_function - dual_objective_function
 
             if verbose == 1:
