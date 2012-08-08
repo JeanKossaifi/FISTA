@@ -25,24 +25,52 @@ def mixed_norm(coefs, p, q=None, n_samples=None, n_kernels=None):
         with l in range(0, n_kernels)
             and m in range(0, n_samples)
 
-    p : int
+    p : int or np.inf
         
-    q : int
+    q : int or np.int
 
     n_samples : int, optional
+        number of elements in each kernel
         default is None
 
     n_kernels : int, optional
+        number of kernels
         default is None
+
+    Returns
+    -------
+    float
     """
     if q is None or p==q:
         return norm(coefs, p)
     else:
-        return (sum([norm(i, p)**q for i in coefs.reshape(n_kernels, n_samples)]))**(1/q)
+        return norm([norm(i, p) for i in coefs.reshape(n_kernels, n_samples)], q)
 
 
 def dual_mixed_norm(coefs, n_samples, n_kernels, norm_):
     """ Returns a function corresponding to the dual mixt norm
+
+    Parameters
+    ----------
+    coefs : ndarray
+        a vector indexed by (l, m)
+        with l in range(0, n_kernels)
+            and m in range(0, n_samples)
+
+    n_samples : int, optional
+        number of elements in each kernel
+        default is None
+
+    n_kernels : int, optional
+        number of kernels
+        default is None
+
+    norm_ : {'l11', 'l12', 'l21', 'l22'}
+        the dual mixed norm we want to compute
+
+    Returns
+    -------
+    float
     """
     if norm=='l11':
         res = norm(coefs, np.inf)
@@ -57,6 +85,25 @@ def dual_mixed_norm(coefs, n_samples, n_kernels, norm_):
 
 def by_kernel_norm(coefs, p, q, n_samples, n_kernels):
     """ Computes the (p, q) norm of coefs for each kernel
+
+    Parameters
+    ----------
+    coefs : ndarray
+        a vector indexed by (l, m)
+        with l in range(0, n_kernels)
+            and m in range(0, n_samples)
+
+    p : int or np.inf
+
+    q : int or np.inf
+
+    n_samples : int, optional
+        number of elements in each kernel
+        default is None
+
+    n_kernels : int, optional
+        number of kernels
+        default is None
 
     Returns
     -------
@@ -92,7 +139,21 @@ def prox_l11(u, lambda_):
     return np.sign(u)*np.maximum(np.abs(u) - lambda_, 0.)
 
 def prox_l22(u, lambda_):
-    """ proximity operator l(2, 2, 2) norm, see prox_l11
+    """ proximity operator l(2, 2, 2) norm
+
+    Parameters
+    ----------
+
+     u : ndarray
+        The vector (of the n-dimensional space) on witch we want to compute the proximal operator
+
+    lambda_ : float
+        regularisation parameter
+
+    Returns
+    -------
+
+    ndarray : the vector corresponding to the application of the proximity operator to u
 
     Notes
     -----
@@ -105,7 +166,28 @@ def prox_l22(u, lambda_):
     return 1./(1.+lambda_)*u
 
 def prox_l21_1(u, l, n_samples, n_kernels):
-    """ proximity operator l(2, 1, 1) norm, see prox_l11
+    """ Proximity operator l(2, 1, 1) norm
+
+    Parameters
+    ----------
+    u : ndarray
+        The vector (of the n-dimensional space) on witch we want to compute the proximal operator
+
+    lambda_ : float
+        regularisation parameter
+    
+    n_samples : int, optional
+        number of elements in each kernel
+        default is None
+
+    n_kernels : int, optional
+        number of kernels
+        default is None
+
+    Returns
+    -------
+    ndarray : the vector corresponding to the application of the proximity operator to u
+
 
     Notes
     -----
@@ -124,11 +206,28 @@ def prox_l21_1(u, l, n_samples, n_kernels):
 
 
 def prox_l21(u, l, n_samples, n_kernels):
-    """ proximity operator l(2, 1, 2) norm, see prox_l11
+    """ proximity operator l(2, 1, 2) norm
 
-    Warning
+    Parameters
+    ----------
+    u : ndarray
+        The vector (of the n-dimensional space) on witch we want to compute the proximal operator
+
+    lambda_ : float
+        regularisation parameter
+
+    n_samples : int, optional
+        number of elements in each kernel
+        default is None
+
+    n_kernels : int, optional
+        number of kernels
+        default is None
+
+
+    Returns
     -------
-    Division by zero may happen
+    ndarray : the vector corresponding to the application of the proximity operator to u
 
     Notes
     -----
@@ -153,7 +252,28 @@ def prox_l21(u, l, n_samples, n_kernels):
 
 
 def prox_l12(u, l, n_samples, n_kernels):
-    """ proximity operator for l(1, 2, 2) norm, see prox_l11
+    """ proximity operator for l(1, 2, 2) norm
+
+    Parameters
+    ----------
+    u : ndarray
+        The vector (of the n-dimensional space) on witch we want to compute the proximal operator
+
+    lambda_ : float
+        regularisation parameter
+
+    n_samples : int, optional
+        number of elements in each kernel
+        default is None
+
+    n_kernels : int, optional
+        number of kernels
+        default is None
+
+    Returns
+    -------
+    ndarray : the vector corresponding to the application of the proximity operator to u
+
 
     Notes
     -----
@@ -302,6 +422,23 @@ def least_square_step(y, K, Z):
 
 def _load_Lipschitz_constant(K):
     """ Loads the Lipschitz constant and computes it if not already saved
+
+    Parameters
+    ----------
+    K : 2D-ndarray
+        The matrix of witch we want to compute the Lipschitz constant
+
+    Returns
+    -------
+    float
+
+    Notes
+    -----
+    Lipshitz constant is just a number < 2/norm(np.dot(K, K.T), 2)
+
+    The constant is stored in a npy hidden file, in the current directory.
+    The filename is the sha1 hash of the ndarray
+
     """
     try:
         mu = np.load('./.%s.npy' % sha1(K).hexdigest())
@@ -314,34 +451,34 @@ def _load_Lipschitz_constant(K):
 class Fista(BaseEstimator):
     """
     Fast iterative shrinkage/thresholding Algorithm
+
+    Parameters
+    ----------
+
+    lambda_ : int, optionnal
+        regularisation parameter
+        default is 0.5
+
+    loss : {'squared-hinge', 'least-square'}, optionnal
+        the loss function to use
+        defautl is 'hinge'
+        
+    penalty : {'l11', 'l22', 'l12', 'l21'}, optionnal
+        norm to use as penalty
+        default is l11
+
+    n_iter : int, optionnal
+        number of iterations
+        default is 1000
+
+    recompute_Lipschitz_constant : bool, optionnal
+        if True, the Lipschitz constant is recomputed everytime
+        if False, it is stored based on it's sha1 hash
+        default is False
+
     """
     
     def __init__(self, lambda_=0.5, loss='squared-hinge', penalty='l11', n_iter=1000, recompute_Lipschitz_constant=False):
-        """
-        Parameters
-        ----------
-
-        lambda_ : int, optionnal
-            regularisation parameter
-            default is 0.5
-
-        loss : {'squared-hinge', 'least-square'}, optionnal
-            defautl : 'hinge'
-            the loss function to use
-            
-        penalty : {'l11', 'l22', 'l12', 'l21'}, optionnal
-            norm to use as penalty
-
-        n_iter : int, optionnal
-            number of iterations
-            default = 1000
-
-        recompute_Lipschitz_constant : bool, optionnal
-            if True, the Lipschitz constant is recomputed everytime
-            if False, it is stored based on it's sha1 hash
-            default : False
-
-        """
         self.n_iter = n_iter
         self.lambda_ = lambda_
         self.loss = loss
@@ -513,6 +650,13 @@ class Fista(BaseEstimator):
     def info(self, K, y):
         """ For test purpose
 
+        Parameters
+        ----------
+        K : 2D-array
+            kernels
+
+        y : ndarray
+            labels
         Returns
         -------
         A dict of informations
