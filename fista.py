@@ -12,6 +12,7 @@ from scipy.linalg import norm
 from math import sqrt
 from sklearn.base import BaseEstimator
 from sklearn.datasets.base import Bunch
+from sklearn.metrics import roc_curve, auc
 from hashlib import sha1
 
 
@@ -26,7 +27,7 @@ def mixed_norm(coefs, p, q=None, n_samples=None, n_kernels=None):
             and m in range(0, n_samples)
 
     p : int or np.inf
-        
+
     q : int or np.int
 
     n_samples : int, optional
@@ -41,10 +42,11 @@ def mixed_norm(coefs, p, q=None, n_samples=None, n_kernels=None):
     -------
     float
     """
-    if q is None or p==q:
+    if q is None or p == q:
         return norm(coefs, p)
     else:
-        return norm([norm(i, p) for i in coefs.reshape(n_kernels, n_samples)], q)
+        return norm([norm(i, p) for i in coefs.reshape(
+            n_kernels, n_samples)], q)
 
 
 def dual_mixed_norm(coefs, n_samples, n_kernels, norm_):
@@ -72,11 +74,11 @@ def dual_mixed_norm(coefs, n_samples, n_kernels, norm_):
     -------
     float
     """
-    if norm=='l11':
+    if norm == 'l11':
         res = norm(coefs, np.inf)
-    elif norm=='l12':
+    elif norm == 'l12':
         res = mixed_norm(coefs, np.inf, 2, n_samples, n_kernels)
-    elif norm=='l21':
+    elif norm == 'l21':
         res = mixed_norm(coefs, 2, np.inf, n_samples, n_kernels)
     else:
         res = norm(coefs, 2)
@@ -110,7 +112,7 @@ def by_kernel_norm(coefs, p, q, n_samples, n_kernels):
     A list of the norms of the sub vectors associated to each kernel
     """
     return [mixed_norm(i, p, q, n_samples, 1)
-        for i in coefs.reshape(n_kernels, n_samples)]
+            for i in coefs.reshape(n_kernels, n_samples)]
 
 
 def prox_l11(u, lambda_):
@@ -119,24 +121,26 @@ def prox_l11(u, lambda_):
     Parameters
     ----------
     u : ndarray
-        The vector (of the n-dimensional space) on witch we want to compute the proximal operator
+        The vector (of the n-dimensional space) on witch we want
+        to compute the proximal operator
 
     lambda_ : float
         regularisation parameter
 
     Returns
     -------
-    ndarray : the vector corresponding to the application of the proximity operator to u
+    ndarray : the vector corresponding to the application of the
+             proximity operator to u
 
     Notes
     -----
 
     .. math::
 
-        \hat{\alpha}_{\ell,m} = \sign(u_{\ell,m})\left||u_{\ell,m}| - \lambda \right|_+
+       \\hat{\\alpha}_{\\ell,m} = \\sign(u_{\\ell,m})\\left||u_{\\ell,m}| - \\lambda \\right|_+
 
     """
-    return np.sign(u)*np.maximum(np.abs(u) - lambda_, 0.)
+    return np.sign(u) * np.maximum(np.abs(u) - lambda_, 0.)
 
 def prox_l22(u, lambda_):
     """ proximity operator l(2, 2, 2) norm
@@ -450,6 +454,8 @@ def _load_Lipschitz_constant(K):
 
 class Fista(BaseEstimator):
     """
+
+
     Fast iterative shrinkage/thresholding Algorithm
 
     Parameters
@@ -461,7 +467,7 @@ class Fista(BaseEstimator):
 
     loss : {'squared-hinge', 'least-square'}, optionnal
         the loss function to use
-        defautl is 'hinge'
+        defautl is 'squared-hinge'
         
     penalty : {'l11', 'l22', 'l12', 'l21'}, optionnal
         norm to use as penalty
@@ -560,16 +566,18 @@ class Fista(BaseEstimator):
             Z = coefs_next + (tau_0 - 1)/tau_1*(coefs_next - coefs_current)
             
             # Dual problem
-            dual_var = 1 - np.dot(K, coefs_next)
-            dual_var = np.maximum(dual_var, 0) # Shrink
+            objective_var = 1 - np.dot(K, coefs_next)
+            objective_var = np.maximum(objective_var, 0) # Shrink
             # Primal objective function
             penalisation = 0.5*self.lambda_/self.q*(mixed_norm(coefs_next,
                     self.p, self.q, n_samples, n_kernels)**self.q)
-            loss = np.sum(dual_var**2)
+            loss = np.sum(objective_var**2)
             objective_function = penalisation + loss
             # Dual objective function
+            dual_var = objective_var
             if self.lambda_ != 0:
-                dual_penalisation = dual_mixed_norm(np.dot(K.T,dual_var)/self.lambda_,
+                #dual_penalisation = dual_mixed_norm(np.dot(K.T,dual_var)/self.lambda_,
+                dual_penalisation = dual_mixed_norm(self.lambda_/self.q*np.dot(K.T,dual_var),
                         n_samples, n_kernels, self.penalty)
                 if self.q==1:
                     # Fenchel conjugate of a mixed norm
@@ -578,11 +586,12 @@ class Fista(BaseEstimator):
                     dual_penalisation = 0
                 else:
                     # Fenchel conjugate of a squared mixed norm
-                    dual_penalisation = 0.5*self.lambda_*(dual_penalisation**2)
+                    #dual_penalisation = 0.5*self.lambda_*(dual_penalisation**2)
+                    dual_penalisation = 0.5*(dual_penalisation**2)
             else:
                 dual_penalisation = 0
-            dual_loss = -0.5*np.sum(dual_var**2) + np.sum(dual_var)
-            # np.dot(duat_var.T, y) au lieu du sum(dual_var) ?
+            dual_loss = -0.5*np.sum(dual_var**2) + np.dot(dual_var, y)#np.sum(dual_var)
+            # trace(np.dot(duat_var[:, np.newaxis], y)) au lieu du sum(dual_var) ?
             dual_objective_function = dual_loss - dual_penalisation
             gap = abs(objective_function - dual_objective_function)
 
@@ -597,11 +606,12 @@ class Fista(BaseEstimator):
                 print "convergence at iteration : %d" %i
                 break
 
-        print "dual gap : %f" % gap
-        print "objective_function : %f" % objective_function
-        print "dual_objective_function : %f" % dual_objective_function
-        print "dual_penalisation : %f" % dual_penalisation
-        print "dual_loss : %f" % dual_loss
+        if verbose:
+            print "dual gap : %f" % gap
+            print "objective_function : %f" % objective_function
+            print "dual_objective_function : %f" % dual_objective_function
+            print "dual_penalisation : %f" % dual_penalisation
+            print "dual_loss : %f" % dual_loss
         self.coefs_ = coefs_next
         self.gap = gap
         self.objective_function = objective_function
@@ -680,5 +690,11 @@ class Fista(BaseEstimator):
         result['objective_function'] = self.objective_function
         result['dual_objective_function'] = self.dual_objective_function
         result['gap'] = self.gap
+        fpr, tpr, thresholds = roc_curve(y, self.predict(K))
+        result['ROC.fpr'] = fpr
+        result['ROC.tpr'] = tpr
+        result['ROC.thresholds'] = thresholds
+        result['auc'] = auc(fpr, tpr)
+        result['lambda_'] = self.lambda_
         
         return result
