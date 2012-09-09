@@ -12,7 +12,7 @@ from scipy.linalg import norm
 from math import sqrt
 from sklearn.base import BaseEstimator
 from sklearn.datasets.base import Bunch
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import auc_score
 from hashlib import sha1
 
 
@@ -569,30 +569,31 @@ class Fista(BaseEstimator):
             objective_var = 1 - np.dot(K, coefs_next)
             objective_var = np.maximum(objective_var, 0) # Shrink
             # Primal objective function
-            penalisation = 0.5*self.lambda_/self.q*(mixed_norm(coefs_next,
+            penalisation = self.lambda_/self.q*(mixed_norm(coefs_next,
                     self.p, self.q, n_samples, n_kernels)**self.q)
-            loss = np.sum(objective_var**2)
+            loss = 0.5*np.sum(objective_var**2)
             objective_function = penalisation + loss
+
             # Dual objective function
             dual_var = objective_var
             if self.lambda_ != 0:
-                #dual_penalisation = dual_mixed_norm(np.dot(K.T,dual_var)/self.lambda_,
-                dual_penalisation = dual_mixed_norm(self.lambda_/self.q*np.dot(K.T,dual_var),
+                dual_penalisation = dual_mixed_norm(np.dot(K.T,dual_var)/self.lambda_,
                         n_samples, n_kernels, self.penalty)
                 if self.q==1:
                     # Fenchel conjugate of a mixed norm
                     if dual_penalisation > 1:
                         dual_var = dual_var / dual_penalisation
+                        # If we did not normalise, dual_penalisation
+                        # would be +infinity ...
                     dual_penalisation = 0
                 else:
                     # Fenchel conjugate of a squared mixed norm
-                    #dual_penalisation = 0.5*self.lambda_*(dual_penalisation**2)
-                    dual_penalisation = 0.5*(dual_penalisation**2)
+                    dual_penalisation = self.lambda_/2*(dual_penalisation**2)
             else:
                 dual_penalisation = 0
-            dual_loss = -0.5*np.sum(dual_var**2) + np.dot(dual_var, y)#np.sum(dual_var)
+            dual_loss = -0.5*np.sum(dual_var**2) + np.sum(dual_var)
             # trace(np.dot(duat_var[:, np.newaxis], y)) au lieu du sum(dual_var) ?
-            dual_objective_function = dual_loss - dual_penalisation
+            dual_objective_function = dual_loss - self.lambda_/self.q*dual_penalisation
             gap = abs(objective_function - dual_objective_function)
 
             if verbose:
@@ -690,11 +691,7 @@ class Fista(BaseEstimator):
         result['objective_function'] = self.objective_function
         result['dual_objective_function'] = self.dual_objective_function
         result['gap'] = self.gap
-        fpr, tpr, thresholds = roc_curve(y, self.predict(K))
-        result['ROC.fpr'] = fpr
-        result['ROC.tpr'] = tpr
-        result['ROC.thresholds'] = thresholds
-        result['auc'] = auc(fpr, tpr)
+        result['auc_score'] = auc_score(y, self.predict(K))
         result['lambda_'] = self.lambda_
         
         return result
