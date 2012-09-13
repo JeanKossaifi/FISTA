@@ -118,6 +118,10 @@ def by_kernel_norm(coefs, p, q, n_samples, n_kernels):
 def prox_l11(u, lambda_):
     """ Proximity operator for l(1, 1, 2) norm
 
+    
+
+    :math:`\\hat{\\alpha}_{\\ell,m} = \\sign(u_{\\ell,m})\\left||u_{\\ell,m}| - \\lambda \\right|_+`
+
     Parameters
     ----------
     u : ndarray
@@ -135,9 +139,9 @@ def prox_l11(u, lambda_):
     Notes
     -----
 
-    .. math::
+    #.. math::
 
-       \\hat{\\alpha}_{\\ell,m} = \\sign(u_{\\ell,m})\\left||u_{\\ell,m}| - \\lambda \\right|_+
+    :math:`\\hat{\\alpha}_{\\ell,m} = \\sign(u_{\\ell,m})\\left||u_{\\ell,m}| - \\lambda \\right|_+`
 
     """
     return np.sign(u) * np.maximum(np.abs(u) - lambda_, 0.)
@@ -633,7 +637,9 @@ class Fista(BaseEstimator):
         ndarray : the prediction associated to K
         """
         if self.loss=='squared-hinge':
-            return np.sign(np.dot(K, self.coefs_))
+            res = np.sign(np.dot(K, self.coefs_))
+            res[res==0] = 1
+            return res
         else:
             return np.dot(K, self.coefs_)
 

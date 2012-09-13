@@ -27,7 +27,7 @@ def _compute_info(estimator, K, y, lambda_, folds):
            for (train_lines, train_columns, test) in folds)
 
     scores = [i['score'] for i in infos]
-    auc_scores = [i['auc_scores'] for i in infos]
+    auc_scores = [i['auc_score'] for i in infos]
     return infos, np.mean(scores), np.std(scores), np.mean(auc_scores)
 
 
@@ -82,7 +82,7 @@ def double_cross_val(penalty, lambdas, n_folds_ext, n_folds_int, K, y, n_iter=10
     print "** Computing scores ..."
     best_results = Parallel(n_jobs=n_jobs, verbose=51)\
             (delayed(intern_cross_val)\
-            (clone(estimator), clone(lambdas), n_folds_int, n_samples, n_kernels, K, y, train_lines, train_columns, test)
+            (clone(estimator), lambdas, n_folds_int, n_samples, n_kernels, K, y, train_lines, train_columns, test)
                for (train_lines, train_columns, test) in folds_ext)
 
     return best_results
