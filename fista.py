@@ -120,7 +120,7 @@ def prox_l11(u, lambda_):
 
     
 
-    :math:`\\hat{\\alpha}_{\\ell,m} = \\sign(u_{\\ell,m})\\left||u_{\\ell,m}| - \\lambda \\right|_+`
+    :math:`\\hat{\\alpha}_{l,m} = sign(u_{l,m})\\left||u_{l,m}| - \\lambda \\right|_+`
 
     Parameters
     ----------
@@ -135,13 +135,6 @@ def prox_l11(u, lambda_):
     -------
     ndarray : the vector corresponding to the application of the
              proximity operator to u
-
-    Notes
-    -----
-
-    #.. math::
-
-    :math:`\\hat{\\alpha}_{\\ell,m} = \\sign(u_{\\ell,m})\\left||u_{\\ell,m}| - \\lambda \\right|_+`
 
     """
     return np.sign(u) * np.maximum(np.abs(u) - lambda_, 0.)
@@ -166,9 +159,7 @@ def prox_l22(u, lambda_):
     Notes
     -----
 
-    .. math::
-
-       \hat{\alpha}_{\ell,m} = \frac{1}{1 + \lambda} \, u_{\ell,m}
+    :math:`\\hat{\\alpha}_{l,m} = \\frac{1}{1 + \\lambda} \\, u_{l,m}`
 
     """
     return 1./(1.+lambda_)*u
@@ -202,10 +193,10 @@ def prox_l21_1(u, l, n_samples, n_kernels):
     
     .. math::
 
-       \hat{\alpha}_{\ell,m} = u_{\ell,m} \left| 1 - \frac{\lambda}{\|\bu_{\ell\bullet}\|_{2}} \right|_+\
+       \hat{\alpha}_{l,m} = u_{l,m} \left| 1 - \frac{\lambda}{\|u_{l \bullet}\|_{2}} \right|_+\
 
     where l is in range(0, n_samples) and m is in range(0, n_kernels)
-    so :math:`u_{\ell\bullet}` = [u(l, m) for m in n_kernels]
+    so :math:`u_{l\\bullet}` = [u(l, m) for m in n_kernels]
 
     """
     return (u.reshape(n_kernels, n_samples) *\
@@ -240,12 +231,10 @@ def prox_l21(u, l, n_samples, n_kernels):
     Notes
     -----
 
-    .. math::
-
-       \hat{\alpha}_{\ell,m} = u_{\ell,m} \left| 1 - \frac{\lambda}{\|\bu_{\ell\bullet}\|_{2}} \right|_+\
+    :math:`\\hat{\\alpha}_{l,m} = u_{l,m} \\left| 1 - \\frac{ \\lambda}{ \\|u_{l \\bullet }\\|_{2}} \\right|_+`
 
     where l is in range(0, n_kernels) and m is in range(0, n_samples)
-    so :math:`u_{\ell\bullet}` = [u(l, m) for l in n_samples]
+    so :math:`u_{l \\bullet }` = [u(l, m) for l in n_samples]
 
     """
     for i in u.reshape(n_kernels, n_samples):
@@ -286,13 +275,11 @@ def prox_l12(u, l, n_samples, n_kernels):
     Notes
     -----
 
-    .. math::
+    :math:`\\hat{\\alpha}_{l,m} = sign(u_{l,m})\\left||u_{l,m}| - \\frac{\\lambda \\sum\\limits_{m_l=1}^{M_l} u2_{l,m_l}}{(1+\\lambda M_l) \\|u_{l \\bullet }\\|_{2}} \\right|_+`
 
-       \hat{\alpha}_{\ell,m} = \sign(u_{\ell,m})\left||u_{\ell,m}| - \frac{\lambda \sum\limits_{m_\ell=1}^{M_\ell} \check u_{\ell,m_\ell}}{(1+\lambda M_\ell) \|\bu_{\ell\bullet}\|_{2}} \right|_+
-
-    where  :math:`\check  u_{\ell,m_\ell}`  denotes the :math:`|u_{\ell,m_\ell}|`
-        ordered  by descending  order for fixed  :math:`\ell`,  and the
-            quantity :math:`M_\ell` is the number computed in compute_M
+    where  :math:`u2_{l,m_l}`  denotes the :math:`|u_{l,m_l}|`
+        ordered  by descending  order for fixed  :math:`l`,  and the
+            quantity :math:`M_l` is the number computed in compute_M
 
     """
     for i in u.reshape(n_kernels, n_samples):
@@ -323,20 +310,17 @@ def compute_M(u, lambda_, n_samples):
     Notes
     -----
     
-    :math:`M_\ell` is the number such that
+    :math:`M_l` is the number such that
 
-    .. math::
-
-       \check u_{\ell,M_\ell+1} \leq  \lambda \sum_{m_\ell=1}^{M_\ell+1} \left(\check u_{\ell,m_\ell} - \check u_{\ell,M_\ell+1}\right) \ ,
+    :math:`u2_{l,M_l+1} \\leq  \\lambda \\sum_{m_l=1}^{M_l+1} \\left( u2_{l,m_l} - u2_{l,M_l+1}\\right)`
 
     and
 
-    .. math::
 
-       \check     u_{\ell,M_\ell}    >    \lambda\sum_{m_\ell=1}^{M_\ell} \left(\check u_{\ell,m_\ell} - \check u_{k,M_\ell}\right)\ .
+    :math:`u2_{l,M_l} > \\lambda\\sum_{m_l=1}^{M_l} \\left( u2_{l,m_l} - u2_{k,M_l}\\right)`
 
-    Explication
-    -----------
+    Detailed explication
+    
     let u denotes |u(l)|, the vector associated with the kernel l, ordered by descending order
     Ml is the integer such that
         u(Ml) <= l * sum(k=1..Ml + 1) (u(k) - u(Ml + 1))    (S1)
@@ -346,8 +330,8 @@ def compute_M(u, lambda_, n_samples):
     In python, while Ml is in [1..(Ml-1)], indices will be in [0..(Ml-1)], so we must take care of indices.
     That's why, we consider Ml is in [0..(Ml-1)] and, at the end, we add 1 to the result
 
-    Example
-    -------
+    Detailed example
+
     if u(l) = [0 1 2 3] corrsponds to the vector associated with a kernel
         then u = |u(l)| ordered by descending order ie u = [3 2 1 0]
 
@@ -458,7 +442,6 @@ def _load_Lipschitz_constant(K):
 
 class Fista(BaseEstimator):
     """
-
 
     Fast iterative shrinkage/thresholding Algorithm
 
