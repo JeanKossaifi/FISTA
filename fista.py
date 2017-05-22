@@ -12,7 +12,7 @@ from scipy.linalg import norm
 from math import sqrt
 from sklearn.base import BaseEstimator
 from sklearn.datasets.base import Bunch
-from sklearn.metrics import auc_score
+from sklearn.metrics import roc_auc_score
 from hashlib import sha1
 
 
@@ -362,7 +362,7 @@ def compute_M(u, lambda_, n_samples):
     u = np.sort(np.abs(u))[::-1]
     S1 = u[1:] - lambda_*(np.cumsum(u)[:-1] - (np.arange(n_samples-1)+1)*u[1:])
     S2 = u[:-1] - lambda_*(np.cumsum(u)[:-1] - (np.arange(n_samples-1)+1)*u[:-1])
-    Ml = np.argmax((S1<=0.) & (S2>0.)) + 1.
+    Ml = np.argmax((S1<=0.) & (S2>0.)) + 1
 
     return Ml, np.sum(u[:Ml]) # u[:Ml] = u[0, 1, ..., Ml-1] !!
 
@@ -519,7 +519,7 @@ class Fista(BaseEstimator):
             next_step = least_square_step
 
         (n_samples, n_features) = K.shape
-        n_kernels = n_features/n_samples # We assume each kernel is a square matrix
+        n_kernels = int(n_features/n_samples) # We assume each kernel is a square matrix
         self.n_samples, self.n_kernels = n_samples, n_kernels
 
         if Lipschitz_constant==None:
@@ -680,7 +680,7 @@ class Fista(BaseEstimator):
         result['objective_function'] = self.objective_function
         result['dual_objective_function'] = self.dual_objective_function
         result['gap'] = self.gap
-        result['auc_score'] = auc_score(y, self.predict(K))
+        result['auc_score'] = roc_auc_score(y, self.predict(K))
         result['lambda_'] = self.lambda_
         
         return result
