@@ -74,11 +74,11 @@ def dual_mixed_norm(coefs, n_samples, n_kernels, norm_):
     -------
     float
     """
-    if norm == 'l11':
+    if norm_ == 'l11':
         res = norm(coefs, np.inf)
-    elif norm == 'l12':
+    elif norm_ == 'l12':
         res = mixed_norm(coefs, np.inf, 2, n_samples, n_kernels)
-    elif norm == 'l21':
+    elif norm_ == 'l21':
         res = mixed_norm(coefs, 2, np.inf, n_samples, n_kernels)
     else:
         res = norm(coefs, 2)
