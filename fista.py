@@ -1,10 +1,9 @@
 """
 Module implementing the FISTA algorithm
 """
-from __future__ import division
+from __future__ import division, print_function
 
 __author__ = 'Jean KOSSAIFI'
-__licence__ = 'BSD'
 
 import numpy as np
 import sys
@@ -532,13 +531,13 @@ class Fista(BaseEstimator):
         tau_1 = 1
 
         if self.penalty=='l11':
-            prox = lambda(u):prox_l11(u, self.lambda_*Lipschitz_constant)
+            prox = lambda u:prox_l11(u, self.lambda_*Lipschitz_constant)
         elif self.penalty=='l22':
-            prox = lambda(u):prox_l22(u, self.lambda_*Lipschitz_constant)
+            prox = lambda u:prox_l22(u, self.lambda_*Lipschitz_constant)
         elif self.penalty=='l21':
-            prox = lambda(u):prox_l21(u, self.lambda_*Lipschitz_constant, n_samples, n_kernels)
+            prox = lambda u:prox_l21(u, self.lambda_*Lipschitz_constant, n_samples, n_kernels)
         elif self.penalty=='l12':
-            prox = lambda(u):prox_l12(u, self.lambda_*Lipschitz_constant, n_samples, n_kernels)
+            prox = lambda u:prox_l12(u, self.lambda_*Lipschitz_constant, n_samples, n_kernels)
 
         if verbose==1:
             self.iteration_dual_gap = list()
@@ -588,18 +587,18 @@ class Fista(BaseEstimator):
                 # print "iteration %d" % i
                 self.iteration_dual_gap.append(gap)
                 if i%1000 == 0:
-                    print "primal objective : %f, dual objective : %f, dual_gap : %f" % (objective_function, dual_objective_function, gap)
+                    print("primal objective : %f, dual objective : %f, dual_gap : %f" % (objective_function, dual_objective_function, gap))
 
             if gap<=tol and i>10:
-                print "convergence at iteration : %d" %i
+                print("convergence at iteration : %d" %i)
                 break
 
         if verbose:
-            print "dual gap : %f" % gap
-            print "objective_function : %f" % objective_function
-            print "dual_objective_function : %f" % dual_objective_function
-            print "dual_penalisation : %f" % dual_penalisation
-            print "dual_loss : %f" % dual_loss
+            print("dual gap : %f" % gap)
+            print("objective_function : %f" % objective_function)
+            print("dual_objective_function : %f" % dual_objective_function)
+            print("dual_penalisation : %f" % dual_penalisation)
+            print("dual_loss : %f" % dual_loss)
         self.coefs_ = coefs_next
         self.gap = gap
         self.objective_function = objective_function
@@ -644,7 +643,7 @@ class Fista(BaseEstimator):
         if self.loss=='squared-hinge':
             return np.sum(np.equal(self.predict(K), y))*100./len(y)
         else:
-            print "Score not yet implemented for regression\n"
+            print("Score not yet implemented for regression\n")
             return None
 
     def info(self, K, y):

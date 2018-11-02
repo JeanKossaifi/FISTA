@@ -1,7 +1,6 @@
 from __future__ import division
 
 __author__ = 'Jean KOSSAIFI'
-__license__ = 'BSD'
 
 import numpy as np
 
